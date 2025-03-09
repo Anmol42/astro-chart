@@ -286,7 +286,7 @@ function App() {
 
   const generateChart = async () => {
     try {
-      const response = await axios.post("https://fastapi-astro-chart.onrender.com:8000/generate_chart", entries, {
+      const response = await axios.post("https://fastapi-astro-chart.onrender.com/generate_chart", entries, {
         headers: { "Content-Type": "application/json" },
         responseType: "blob",
       });
