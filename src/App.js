@@ -2,36 +2,190 @@ import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import OpenSeadragon from "openseadragon";
 
-const signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"];
-const names = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Rahu", "Ketu", "Uranus", "Neptune", "Pluto"];
+
+// Common cities with their latitude and longitude
+const cityDatabase = [
+  { city: "New York", country: "USA", latitude: 40.7128, longitude: -74.0060 },
+  { city: "London", country: "UK", latitude: 51.5074, longitude: -0.1278 },
+  { city: "Paris", country: "France", latitude: 48.8566, longitude: 2.3522 },
+  { city: "Tokyo", country: "Japan", latitude: 35.6762, longitude: 139.6503 },
+  { city: "Sydney", country: "Australia", latitude: -33.8688, longitude: 151.2093 },
+  { city: "Rio de Janeiro", country: "Brazil", latitude: -22.9068, longitude: -43.1729 },
+  { city: "Cairo", country: "Egypt", latitude: 30.0444, longitude: 31.2357 },
+  { city: "Mumbai", country: "India", latitude: 19.0760, longitude: 72.8777 },
+  { city: "Beijing", country: "China", latitude: 39.9042, longitude: 116.4074 },
+  { city: "Los Angeles", country: "USA", latitude: 34.0522, longitude: -118.2437 },
+  { city: "Moscow", country: "Russia", latitude: 55.7558, longitude: 37.6173 },
+  { city: "Berlin", country: "Germany", latitude: 52.5200, longitude: 13.4050 },
+  { city: "Madrid", country: "Spain", latitude: 40.4168, longitude: -3.7038 },
+  { city: "Toronto", country: "Canada", latitude: 43.6532, longitude: -79.3832 },
+  { city: "Singapore", country: "Singapore", latitude: 1.3521, longitude: 103.8198 },
+  { city: "Mexico City", country: "Mexico", latitude: 19.4326, longitude: -99.1332 },
+  { city: "Cape Town", country: "South Africa", latitude: -33.9249, longitude: 18.4241 },
+  { city: "Rome", country: "Italy", latitude: 41.9028, longitude: 12.4964 },
+  { city: "Istanbul", country: "Turkey", latitude: 41.0082, longitude: 28.9784 },
+  { city: "Dubai", country: "UAE", latitude: 25.2048, longitude: 55.2708 },
+  { city: "Bangkok", country: "Thailand", latitude: 13.7563, longitude: 100.5018 },
+  { city: "Amsterdam", country: "Netherlands", latitude: 52.3676, longitude: 4.9041 },
+  { city: "Chicago", country: "USA", latitude: 41.8781, longitude: -87.6298 },
+  { city: "San Francisco", country: "USA", latitude: 37.7749, longitude: -122.4194 },
+  { city: "Stockholm", country: "Sweden", latitude: 59.3293, longitude: 18.0686 },
+  { city: "Seoul", country: "South Korea", latitude: 37.5665, longitude: 126.9780 },
+  { city: "Athens", country: "Greece", latitude: 37.9838, longitude: 23.7275 },
+  { city: "Vienna", country: "Austria", latitude: 48.2082, longitude: 16.3738 },
+  { city: "Prague", country: "Czech Republic", latitude: 50.0755, longitude: 14.4378 },
+  { city: "Warsaw", country: "Poland", latitude: 52.2297, longitude: 21.0122 },
+  { city: "Buenos Aires", country: "Argentina", latitude: -34.6037, longitude: -58.3816 },
+  { city: "Santiago", country: "Chile", latitude: -33.4489, longitude: -70.6693 },
+  { city: "Lima", country: "Peru", latitude: -12.0464, longitude: -77.0428 },
+  { city: "Helsinki", country: "Finland", latitude: 60.1699, longitude: 24.9384 },
+  { city: "Oslo", country: "Norway", latitude: 59.9139, longitude: 10.7522 },
+  { city: "Copenhagen", country: "Denmark", latitude: 55.6761, longitude: 12.5683 },
+  { city: "Dublin", country: "Ireland", latitude: 53.3498, longitude: -6.2603 },
+  { city: "Brussels", country: "Belgium", latitude: 50.8503, longitude: 4.3517 },
+  { city: "Lisbon", country: "Portugal", latitude: 38.7223, longitude: -9.1393 },
+  { city: "Manila", country: "Philippines", latitude: 14.5995, longitude: 120.9842 },
+  { city: "Kuala Lumpur", country: "Malaysia", latitude: 3.1390, longitude: 101.6869 },
+  { city: "Jakarta", country: "Indonesia", latitude: -6.2088, longitude: 106.8456 },
+  { city: "Auckland", country: "New Zealand", latitude: -36.8509, longitude: 174.7645 },
+  { city: "Vancouver", country: "Canada", latitude: 49.2827, longitude: -123.1207 },
+  { city: "Montreal", country: "Canada", latitude: 45.5017, longitude: -73.5673 },
+  { city: "Nairobi", country: "Kenya", latitude: -1.2921, longitude: 36.8219 },
+  { city: "Lagos", country: "Nigeria", latitude: 6.5244, longitude: 3.3792 },
+  { city: "Johannesburg", country: "South Africa", latitude: -26.2041, longitude: 28.0473 },
+  { city: "Riyadh", country: "Saudi Arabia", latitude: 24.7136, longitude: 46.6753 },
+  { city: "Tel Aviv", country: "Israel", latitude: 32.0853, longitude: 34.7818 },
+  { city: "Delhi", country: "India", latitude: 28.6139, longitude: 77.2090 },
+  { city: "Bangalore", country: "India", latitude: 12.9716, longitude: 77.5946 },
+  { city: "Hyderabad", country: "India", latitude: 17.3850, longitude: 78.4867 },
+  { city: "Chennai", country: "India", latitude: 13.0827, longitude: 80.2707 },
+  { city: "Kolkata", country: "India", latitude: 22.5726, longitude: 88.3639 },
+  { city: "Ahmedabad", country: "India", latitude: 23.0225, longitude: 72.5714 },
+  { city: "Pune", country: "India", latitude: 18.5204, longitude: 73.8567 },
+  { city: "Jaipur", country: "India", latitude: 26.9124, longitude: 75.7873 },
+  { city: "Surat", country: "India", latitude: 21.1702, longitude: 72.8311 },
+  { city: "Lucknow", country: "India", latitude: 26.8467, longitude: 80.9462 },
+  { city: "Kanpur", country: "India", latitude: 26.4499, longitude: 80.3319 },
+  { city: "Nagpur", country: "India", latitude: 21.1458, longitude: 79.0882 },
+  { city: "Indore", country: "India", latitude: 22.7196, longitude: 75.8577 },
+  { city: "Thane", country: "India", latitude: 19.2183, longitude: 72.9781 },
+  { city: "Bhopal", country: "India", latitude: 23.2599, longitude: 77.4126 },
+  { city: "Visakhapatnam", country: "India", latitude: 17.6868, longitude: 83.2185 },
+  { city: "Patna", country: "India", latitude: 25.5941, longitude: 85.1376 },
+  { city: "Vadodara", country: "India", latitude: 22.3072, longitude: 73.1812 },
+  { city: "Ghaziabad", country: "India", latitude: 28.6692, longitude: 77.4538 },
+  { city: "Ludhiana", country: "India", latitude: 30.9010, longitude: 75.8573 },
+  { city: "Agra", country: "India", latitude: 27.1767, longitude: 78.0081 },
+  { city: "Nashik", country: "India", latitude: 19.9975, longitude: 73.7898 },
+  { city: "Ranchi", country: "India", latitude: 23.3441, longitude: 85.3096 },
+  { city: "Faridabad", country: "India", latitude: 28.4089, longitude: 77.3178 },
+  { city: "Coimbatore", country: "India", latitude: 11.0168, longitude: 76.9558 },
+  { city: "Jamshedpur", country: "India", latitude: 22.8046, longitude: 86.2029 },
+  { city: "Srinagar", country: "India", latitude: 34.0837, longitude: 74.7973 },
+  { city: "Aurangabad", country: "India", latitude: 19.8762, longitude: 75.3433 },
+  { city: "Dhanbad", country: "India", latitude: 23.7957, longitude: 86.4304 },
+  { city: "Amritsar", country: "India", latitude: 31.6340, longitude: 74.8723 },
+  { city: "Navi Mumbai", country: "India", latitude: 19.0330, longitude: 73.0297 },
+  { city: "Allahabad", country: "India", latitude: 25.4358, longitude: 81.8463 },
+  { city: "Howrah", country: "India", latitude: 22.5958, longitude: 88.2636 },
+  { city: "Guwahati", country: "India", latitude: 26.1445, longitude: 91.7362 },
+  { city: "Chandigarh", country: "India", latitude: 30.7333, longitude: 76.7794 },
+  { city: "Mysore", country: "India", latitude: 12.2958, longitude: 76.6394 },
+  { city: "Gwalior", country: "India", latitude: 26.2183, longitude: 78.1828 },
+  { city: "Jodhpur", country: "India", latitude: 26.2389, longitude: 73.0243 },
+  { city: "Raipur", country: "India", latitude: 21.2514, longitude: 81.6296 },
+  { city: "Kochi", country: "India", latitude: 9.9312, longitude: 76.2673 },
+  { city: "Bhubaneswar", country: "India", latitude: 20.2961, longitude: 85.8245 },
+  { city: "Bhopal", country: "India", latitude: 23.2599, longitude: 77.4126 },
+  { city: "Bikaner", country: "India", latitude: 28.0229, longitude: 73.3119 },
+  { city: "Bhilai", country: "India", latitude: 21.1938, longitude: 81.3509 },
+  { city: "Puducherry", country: "India", latitude: 11.9139, longitude: 79.8145 },
+  { city: "Dehradun", country: "India", latitude: 30.3165, longitude: 78.0322 },
+  { city: "Salem", country: "India", latitude: 11.6643, longitude: 78.1460 },
+  { city: "Ujjain", country: "India", latitude: 23.1765, longitude: 75.7885 },
+  { city: "Jhansi", country: "India", latitude: 25.4484, longitude: 78.5685 },
+  { city: "Thiruvananthapuram", country: "India", latitude: 8.5241, longitude: 76.9366 },
+  { city: "Moradabad", country: "India", latitude: 28.8386, longitude: 78.7733 },
+  { city: "Warangal", country: "India", latitude: 17.9689, longitude: 79.5941 },
+  { city: "Jamnagar", country: "India", latitude: 22.4707, longitude: 70.0577 },
+  { city: "Mangalore", country: "India", latitude: 12.9141, longitude: 74.8560 },
+  { city: "Kota", country: "India", latitude: 25.2138, longitude: 75.8648 },
+  { city: "Jalandhar", country: "India", latitude: 31.3260, longitude: 75.5762 },
+  { city: "Gorakhpur", country: "India", latitude: 26.7605, longitude: 83.3731 },
+  { city: "Ajmer", country: "India", latitude: 26.4499, longitude: 74.6399 },
+  { city: "Udaipur", country: "India", latitude: 24.5854, longitude: 73.7125 },
+  { city: "Tirupur", country: "India", latitude: 11.1085, longitude: 77.3411 },
+  { city: "Siliguri", country: "India", latitude: 26.7271, longitude: 88.3953 },
+  { city: "Guntur", country: "India", latitude: 16.3067, longitude: 80.4365 },
+  { city: "Gurgaon", country: "India", latitude: 28.4595, longitude: 77.0266 },
+  { city: "Aligarh", country: "India", latitude: 27.8974, longitude: 78.0880 },
+  { city: "Jammu", country: "India", latitude: 32.7266, longitude: 74.8570 },
+  { city: "Bareilly", country: "India", latitude: 28.3670, longitude: 79.4304 },
+  { city: "Rajkot", country: "India", latitude: 22.3039, longitude: 70.8022 },
+  { city: "Madurai", country: "India", latitude: 9.9252, longitude: 78.1198 },
+  { city: "Tiruchchirappalli", country: "India", latitude: 10.7905, longitude: 78.7047 },
+  { city: "Cochin", country: "India", latitude: 9.9312, longitude: 76.2673 },
+  { city: "Vijayawada", country: "India", latitude: 16.5062, longitude: 80.6480 },
+  { city: "Jabalpur", country: "India", latitude: 23.1815, longitude: 79.9864 },
+  { city: "Noida", country: "India", latitude: 28.5355, longitude: 77.3910 },
+  { city: "Varanasi", country: "India", latitude: 25.3176, longitude: 82.9739 },
+  { city: "Meerut", country: "India", latitude: 28.9845, longitude: 77.7064 },
+  { city: "Bhavnagar", country: "India", latitude: 21.7645, longitude: 72.1519 },
+  { city: "Solapur", country: "India", latitude: 17.6599, longitude: 75.9064 },
+  { city: "Thrissur", country: "India", latitude: 10.5276, longitude: 76.2144 },
+  { city: "Hubli", country: "India", latitude: 15.3647, longitude: 75.1240 },
+  { city: "Kolhapur", country: "India", latitude: 16.7050, longitude: 74.2433 },
+  { city: "Cuttack", country: "India", latitude: 20.4625, longitude: 85.8830 },
+  { city: "Firozabad", country: "India", latitude: 27.1592, longitude: 78.3957 },
+  { city: "Amravati", country: "India", latitude: 20.9320, longitude: 77.7523 },
+  { city: "Durgapur", country: "India", latitude: 23.5204, longitude: 87.3119 },
+  { city: "Gandhinagar", country: "India", latitude: 23.2156, longitude: 72.6369 },
+  { city: "Nellore", country: "India", latitude: 14.4426, longitude: 79.9865 },
+  { city: "Rourkela", country: "India", latitude: 22.2604, longitude: 84.8536 },
+  { city: "Muzaffarpur", country: "India", latitude: 26.1209, longitude: 85.3647 },
+  { city: "Anantapur", country: "India", latitude: 14.6819, longitude: 77.6006 },
+  { city: "Kozhikode", country: "India", latitude: 11.2588, longitude: 75.7804 },
+  { city: "Erode", country: "India", latitude: 11.3410, longitude: 77.7172 },
+  { city: "Haridwar", country: "India", latitude: 29.9457, longitude: 78.1642 },
+  { city: "Mathura", country: "India", latitude: 27.4924, longitude: 77.6737 },
+  { city: "Rohtak", country: "India", latitude: 28.8955, longitude: 76.6066 },
+  { city: "Saharanpur", country: "India", latitude: 29.9680, longitude: 77.5510 },
+  { city: "Raichur", country: "India", latitude: 16.2120, longitude: 77.3439 },
+  { city: "Tirunelveli", country: "India", latitude: 8.7139, longitude: 77.7567 },
+  { city: "Loni", country: "India", latitude: 28.7501, longitude: 77.2819 },
+  { city: "Patiala", country: "India", latitude: 30.3398, longitude: 76.3869 },
+  { city: "Belgaum", country: "India", latitude: 15.8497, longitude: 74.4977 },
+  { city: "Kakinada", country: "India", latitude: 16.9891, longitude: 82.2475 }
+];
 
 function App() {
   const [entries, setEntries] = useState([]);
-  const [selectedName, setSelectedName] = useState(names[0]);
-  const [selectedSign, setSelectedSign] = useState(signs[0]);
-  const [degree, setDegree] = useState("");
+  const [chartData, setChartData] = useState({
+    date: "",
+    time: "",
+    latitude: "",
+    longitude: "",
+    city: "",
+    country: ""
+  });
   const [imageData, setImageData] = useState(null);
   const [imageBlob, setImageBlob] = useState(null);
   const viewerRef = useRef(null);
   const osdViewer = useRef(null); // Track OpenSeadragon instance
   
-  // State for autocomplete
-  const [nameInput, setNameInput] = useState("");
-  const [signInput, setSignInput] = useState("");
-  const [nameOptions, setNameOptions] = useState(names);
-  const [signOptions, setSignOptions] = useState(signs);
-  const [showNameDropdown, setShowNameDropdown] = useState(false);
-  const [showSignDropdown, setShowSignDropdown] = useState(false);
+  // State for city autocomplete
+  const [cityInput, setCityInput] = useState("");
+  const [cityOptions, setCityOptions] = useState([]);
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
+  const [cityHighlightIndex, setCityHighlightIndex] = useState(0);
   
-  // State for keyboard navigation
-  const [nameHighlightIndex, setNameHighlightIndex] = useState(0);
-  const [signHighlightIndex, setSignHighlightIndex] = useState(0);
-  
-  // Refs for detecting clicks outside dropdowns
-  const nameInputRef = useRef(null);
-  const signInputRef = useRef(null);
-  const degreeInputRef = useRef(null);
-  const addButtonRef = useRef(null);
+  // Refs for input fields
+  const dateInputRef = useRef(null);
+  const timeInputRef = useRef(null);
+  const latitudeInputRef = useRef(null);
+  const longitudeInputRef = useRef(null);
+  const cityInputRef = useRef(null);
+  const generateButtonRef = useRef(null);
   
   // Initialize OpenSeadragon viewer once
   useEffect(() => {
@@ -64,19 +218,29 @@ function App() {
     }
   }, [imageData]);
   
+  // Filter city options based on input
+  useEffect(() => {
+    if (cityInput.trim() === '') {
+      setCityOptions([]);
+      setShowCityDropdown(false);
+    } else {
+      const filteredCities = cityDatabase.filter(item => 
+        item.city.toLowerCase().includes(cityInput.toLowerCase()) ||
+        item.country.toLowerCase().includes(cityInput.toLowerCase())
+      );
+      setCityOptions(filteredCities);
+      setShowCityDropdown(filteredCities.length > 0);
+      setCityHighlightIndex(0);
+    }
+  }, [cityInput]);
+  
   // Handle clicks outside of dropdowns
   useEffect(() => {
     function handleClickOutside(event) {
-      // Check if the click is outside the dropdown containers
-      const nameContainer = document.getElementById("name-dropdown-container");
-      const signContainer = document.getElementById("sign-dropdown-container");
+      const cityContainer = document.getElementById("city-dropdown-container");
       
-      if (nameContainer && !nameContainer.contains(event.target)) {
-        setShowNameDropdown(false);
-      }
-      
-      if (signContainer && !signContainer.contains(event.target)) {
-        setShowSignDropdown(false);
+      if (cityContainer && !cityContainer.contains(event.target)) {
+        setShowCityDropdown(false);
       }
     }
     
@@ -86,194 +250,189 @@ function App() {
     };
   }, []);
 
-  // Filter name options based on input
-  useEffect(() => {
-    if (nameInput.trim() === '') {
-      setNameOptions(names);
-    } else {
-      const filtered = names.filter(name => 
-        name.toLowerCase().includes(nameInput.toLowerCase())
-      );
-      setNameOptions(filtered);
-    }
-    // Reset highlight index when options change
-    setNameHighlightIndex(0);
-  }, [nameInput]);
-  
-  // Filter sign options based on input
-  useEffect(() => {
-    if (signInput.trim() === '') {
-      setSignOptions(signs);
-    } else {
-      const filtered = signs.filter(sign => 
-        sign.toLowerCase().includes(signInput.toLowerCase())
-      );
-      setSignOptions(filtered);
-    }
-    // Reset highlight index when options change
-    setSignHighlightIndex(0);
-  }, [signInput]);
-
-  const handleNameSelect = (name) => {
-    setSelectedName(name);
-    setNameInput(name);
-    setShowNameDropdown(false);
+  // Handle city selection from dropdown
+  const handleCitySelect = (cityData) => {
+    setChartData({
+      ...chartData,
+      city: cityData.city,
+      country: cityData.country,
+      latitude: cityData.latitude.toString(),
+      longitude: cityData.longitude.toString()
+    });
+    setCityInput(`${cityData.city}, ${cityData.country}`);
+    setShowCityDropdown(false);
   };
-  
-  const handleSignSelect = (sign) => {
-    setSelectedSign(sign);
-    setSignInput(sign);
-    setShowSignDropdown(false);
+
+  // Handle manual input changes
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setChartData({
+      ...chartData,
+      [name]: value
+    });
   };
 
   // Reset form to initial state
   const resetForm = () => {
-    setSelectedName(names[0]);
-    setSelectedSign(signs[0]);
-    setNameInput("");
-    setSignInput("");
-    setDegree("");
+    setChartData({
+      date: "",
+      time: "",
+      latitude: "",
+      longitude: "",
+      city: "",
+      country: ""
+    });
+    setCityInput("");
+  };
+
+  // Validate input before submitting
+  const validateInput = () => {
+    const { date, time, latitude, longitude } = chartData;
+    
+    // Check if date is provided
+    if (!date) {
+      alert("Please enter a date");
+      return false;
+    }
+    
+    // Check if time is provided
+    if (!time) {
+      alert("Please enter a time");
+      return false;
+    }
+    
+    // Check if either coordinates OR city is provided
+    if ((!latitude || !longitude) && !cityInput) {
+      alert("Please provide either coordinates (latitude and longitude) or a city name");
+      return false;
+    }
+    
+    // If latitude/longitude are provided, validate their format
+    if (latitude || longitude) {
+      if (isNaN(parseFloat(latitude)) || isNaN(parseFloat(longitude))) {
+        alert("Latitude and longitude must be valid numbers");
+        return false;
+      }
+      
+      if (parseFloat(latitude) < -90 || parseFloat(latitude) > 90) {
+        alert("Latitude must be between -90 and 90 degrees");
+        return false;
+      }
+      
+      if (parseFloat(longitude) < -180 || parseFloat(longitude) > 180) {
+        alert("Longitude must be between -180 and 180 degrees");
+        return false;
+      }
+    }
+    
+    return true;
   };
 
   // Properly implemented cyclical field navigation
   const focusNextField = (currentField) => {
-    if (currentField === 'name') {
-      signInputRef.current.focus();
-    } else if (currentField === 'sign') {
-      degreeInputRef.current.focus();
-    } else if (currentField === 'degree') {
-      nameInputRef.current.focus();
+    switch (currentField) {
+      case 'date':
+        timeInputRef.current.focus();
+        break;
+      case 'time':
+        cityInputRef.current.focus();
+        break;
+      case 'city':
+        latitudeInputRef.current.focus();
+        break;
+      case 'latitude':
+        longitudeInputRef.current.focus();
+        break;
+      case 'longitude':
+        generateButtonRef.current.focus();
+        break;
+      default:
+        dateInputRef.current.focus();
     }
   };
 
   // Properly implemented cyclical field navigation in reverse
   const focusPreviousField = (currentField) => {
-    if (currentField === 'name') {
-      degreeInputRef.current.focus();
-    } else if (currentField === 'sign') {
-      nameInputRef.current.focus();
-    } else if (currentField === 'degree') {
-      signInputRef.current.focus();
+    switch (currentField) {
+      case 'date':
+        longitudeInputRef.current.focus();
+        break;
+      case 'time':
+        dateInputRef.current.focus();
+        break;
+      case 'city':
+        timeInputRef.current.focus();
+        break;
+      case 'latitude':
+        cityInputRef.current.focus();
+        break;
+      case 'longitude':
+        latitudeInputRef.current.focus();
+        break;
+      default:
+        dateInputRef.current.focus();
     }
   };
 
-  // Handle tab completion and keyboard navigation for name input
-  const handleNameKeyDown = (e) => {
-    if (e.key === 'Tab' && showNameDropdown && nameOptions.length > 0) {
+  // Handle keyboard navigation for city input
+  const handleCityKeyDown = (e) => {
+    if (e.key === 'ArrowDown' && showCityDropdown) {
       e.preventDefault();
-      handleNameSelect(nameOptions[nameHighlightIndex]);
-      if (e.shiftKey) {
-        // Focus previous element
-        focusPreviousField('name');
-      } else {
-        focusNextField('name');
-      }
-    } else if (e.key === 'ArrowDown' && showNameDropdown) {
-      e.preventDefault();
-      setNameHighlightIndex((prevIndex) => 
-        prevIndex < nameOptions.length - 1 ? prevIndex + 1 : prevIndex
+      setCityHighlightIndex((prevIndex) => 
+        prevIndex < cityOptions.length - 1 ? prevIndex + 1 : prevIndex
       );
-    } else if (e.key === 'ArrowUp' && showNameDropdown) {
+    } else if (e.key === 'ArrowUp' && showCityDropdown) {
       e.preventDefault();
-      setNameHighlightIndex((prevIndex) => 
+      setCityHighlightIndex((prevIndex) => 
         prevIndex > 0 ? prevIndex - 1 : 0
       );
-    } else if (e.key === 'Enter' && showNameDropdown) {
+    } else if (e.key === 'Enter' && showCityDropdown) {
       e.preventDefault();
-      if (nameOptions.length > 0) {
-        handleNameSelect(nameOptions[nameHighlightIndex]);
+      if (cityOptions.length > 0) {
+        handleCitySelect(cityOptions[cityHighlightIndex]);
       }
     } else if (e.key === 'Escape') {
-      setShowNameDropdown(false);
+      setShowCityDropdown(false);
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
-      focusNextField('name');
+      focusNextField('city');
     } else if (e.key === 'ArrowLeft') {
       e.preventDefault();
-      focusPreviousField('name');
-    } else if (e.key === 'Enter' && !showNameDropdown) {
+      focusPreviousField('city');
+    } else if (e.key === 'Enter' && !showCityDropdown) {
       e.preventDefault();
-      focusNextField('name');
-    }
-  };
-  
-  // Handle tab completion and keyboard navigation for sign input
-  const handleSignKeyDown = (e) => {
-    if (e.key === 'Tab' && showSignDropdown && signOptions.length > 0) {
-      e.preventDefault();
-      handleSignSelect(signOptions[signHighlightIndex]);
-      if (e.shiftKey) {
-        focusPreviousField('sign');
-      } else {
-        focusNextField('sign');
+      focusNextField('city');
+    } else if (e.key === 'Tab') {
+      if (showCityDropdown && cityOptions.length > 0) {
+        e.preventDefault();
+        handleCitySelect(cityOptions[cityHighlightIndex]);
+        if (e.shiftKey) {
+          focusPreviousField('city');
+        } else {
+          focusNextField('city');
+        }
       }
-    } else if (e.key === 'ArrowDown' && showSignDropdown) {
-      e.preventDefault();
-      setSignHighlightIndex((prevIndex) => 
-        prevIndex < signOptions.length - 1 ? prevIndex + 1 : prevIndex
-      );
-    } else if (e.key === 'ArrowUp' && showSignDropdown) {
-      e.preventDefault();
-      setSignHighlightIndex((prevIndex) => 
-        prevIndex > 0 ? prevIndex - 1 : 0
-      );
-    } else if (e.key === 'Enter' && showSignDropdown) {
-      e.preventDefault();
-      if (signOptions.length > 0) {
-        handleSignSelect(signOptions[signHighlightIndex]);
-      }
-    } else if (e.key === 'Escape') {
-      setShowSignDropdown(false);
-    } else if (e.key === 'ArrowRight') {
-      e.preventDefault();
-      focusNextField('sign');
-    } else if (e.key === 'ArrowLeft') {
-      e.preventDefault();
-      focusPreviousField('sign');
-    } else if (e.key === 'Enter' && !showSignDropdown) {
-      e.preventDefault();
-      focusNextField('sign');
     }
   };
 
-  // Handle keyboard navigation for degree input
-  const handleDegreeKeyDown = (e) => {
+  // Handle keyboard navigation for other inputs
+  const handleKeyDown = (e, field) => {
     if (e.key === 'ArrowRight') {
       e.preventDefault();
-      focusNextField('degree');
+      focusNextField(field);
     } else if (e.key === 'ArrowLeft') {
       e.preventDefault();
-      focusPreviousField('degree');
+      focusPreviousField(field);
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      addEntry();
+      if (field === 'longitude') {
+        if (validateInput()) {
+          generateChart();
+        }
+      } else {
+        focusNextField(field);
+      }
     }
-  };
-
-  const addEntry = () => {
-    if (degree === "" || isNaN(parseFloat(degree))) return;
-    
-    // Get the final values - either from input or selected
-    const finalName = nameInput || selectedName;
-    const finalSign = signInput || selectedSign;
-    
-    // Validate that name and sign are in our lists
-    if (!names.includes(finalName) || !signs.includes(finalSign)) {
-      alert("Please select valid Name and Sign options");
-      return;
-    }
-    
-    setEntries([...entries, { 
-      name: finalName, 
-      sign: finalSign, 
-      degree: parseFloat(degree) 
-    }]);
-    
-    // Reset form to initial state
-    resetForm();
-    
-    // Return focus to the name input for quick entry of multiple planets
-    nameInputRef.current.focus();
   };
 
   const resetEntries = () => {
@@ -281,12 +440,25 @@ function App() {
     setImageData(null);
     setImageBlob(null);
     resetForm();
-    nameInputRef.current.focus();
+    dateInputRef.current.focus();
   };
 
   const generateChart = async () => {
+    if (!validateInput()) return;
+    
     try {
-      const response = await axios.post("https://fastapi-astro-chart.onrender.com/generate_chart", entries, {
+      // Prepare the payload, ensuring it has all necessary data
+      const payload = {
+        date: chartData.date,
+        time: chartData.time,
+        latitude: chartData.latitude,
+        longitude: chartData.longitude,
+        city: chartData.city || cityInput.split(',')[0].trim(), // Use the input city name if no selection was made
+        country: chartData.country || (cityInput.includes(',') ? cityInput.split(',')[1].trim() : ""),
+        calculatePositions: true
+      };
+      
+      const response = await axios.post("https://fastapi-astro-chart.onrender.com/generate_chart", payload, {
         headers: { "Content-Type": "application/json" },
         responseType: "blob",
       });
@@ -295,17 +467,32 @@ function App() {
       const imageUrl = URL.createObjectURL(newImageBlob);
       setImageData(imageUrl);
       setImageBlob(newImageBlob);
+      
+      // Request the calculated positions to display them
+      try {
+        const positionsResponse = await axios.post("https://fastapi-astro-chart.onrender.com/get_positions", payload, {
+          headers: { "Content-Type": "application/json" },
+        });
+        
+        // Assuming backend returns calculated positions for planets
+        setEntries(positionsResponse.data);
+      } catch (error) {
+        console.error("Error fetching planet positions:", error);
+      }
     } catch (error) {
       console.error("Error generating chart:", error);
+      alert("Failed to generate chart. Please check your inputs and try again.");
     }
   };
 
   const downloadImage = () => {
     if (!imageBlob) return;
     
-    // Create a timestamp for unique filename
+    // Create a descriptive filename with location and date information
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const fileName = `astrology-chart-${timestamp}.png`;
+    const location = chartData.city || cityInput || `${chartData.latitude}-${chartData.longitude}`;
+    const dateStr = chartData.date.replace(/-/g, "");
+    const fileName = `astrology-chart-${location}-${dateStr}-${timestamp}.png`;
     
     // Create download link
     const downloadLink = document.createElement("a");
@@ -320,177 +507,239 @@ function App() {
     document.body.removeChild(downloadLink);
   };
 
+  // Format date as string for display
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString(undefined, { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  // Get display location - city, country or coordinates
+  const getDisplayLocation = () => {
+    if (chartData.city && chartData.country) {
+      return `${chartData.city}, ${chartData.country}`;
+    } else if (chartData.city) {
+      return chartData.city;
+    } else if (cityInput) {
+      return cityInput;
+    } else if (chartData.latitude && chartData.longitude) {
+      return `${chartData.latitude}°, ${chartData.longitude}°`;
+    } else {
+      return "Unknown location";
+    }
+  };
+
   return (
     <div style={{ textAlign: "center", padding: "20px" }}>
       <h2>Astrology Chart Generator</h2>
-      <div>
-        <div id="name-dropdown-container" style={{ display: "inline-block", position: "relative", marginRight: "10px" }}>
-          <label>Name: </label>
+      <div style={{ 
+        display: "flex", 
+        flexDirection: "column", 
+        maxWidth: "500px", 
+        margin: "0 auto",
+        textAlign: "left",
+        gap: "12px"
+      }}>
+        <div>
+          <label style={{ display: "block", marginBottom: "4px" }}>Date: </label>
+          <input
+            type="date"
+            name="date"
+            value={chartData.date}
+            onChange={handleInputChange}
+            onKeyDown={(e) => handleKeyDown(e, 'date')}
+            ref={dateInputRef}
+            style={{ width: "100%" }}
+            required
+          />
+        </div>
+
+        <div>
+          <label style={{ display: "block", marginBottom: "4px" }}>Time (12-hour format): </label>
+          <input
+            type="time"
+            name="time"
+            value={chartData.time}
+            onChange={handleInputChange}
+            onKeyDown={(e) => handleKeyDown(e, 'time')}
+            ref={timeInputRef}
+            style={{ width: "100%" }}
+            step="1" // Allow seconds input
+            required
+          />
+        </div>
+
+        <div id="city-dropdown-container" style={{ position: "relative" }}>
+          <label style={{ display: "block", marginBottom: "4px" }}>City, Country: </label>
           <input
             type="text"
-            value={nameInput}
-            onChange={(e) => {
-              setNameInput(e.target.value);
-              setShowNameDropdown(true);
+            value={cityInput}
+            onChange={(e) => setCityInput(e.target.value)}
+            onKeyDown={handleCityKeyDown}
+            onFocus={() => {
+              if (cityInput.trim() !== '') {
+                setShowCityDropdown(true);
+              }
             }}
-            onFocus={() => setShowNameDropdown(true)}
-            onKeyDown={handleNameKeyDown}
-            ref={nameInputRef}
-            style={{ width: "100px" }}
-            placeholder={selectedName}
+            ref={cityInputRef}
+            style={{ width: "100%" }}
+            placeholder="Type to search for a city"
           />
-          {showNameDropdown && nameOptions.length > 0 && (
+          {showCityDropdown && cityOptions.length > 0 && (
             <div 
               style={{
                 position: "absolute",
                 left: 0,
-                zIndex: 1,
+                right: 0,
+                zIndex: 10,
                 background: "white",
                 border: "1px solid #ccc",
-                width: "150px",
                 maxHeight: "200px",
                 overflowY: "auto",
-                textAlign: "left"
+                boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
+                borderRadius: "4px",
+                marginTop: "2px"
               }}
             >
-              {nameOptions.map((name, index) => (
+              {cityOptions.map((cityData, index) => (
                 <div
-                  key={name}
+                  key={`${cityData.city}-${cityData.country}`}
                   style={{
                     padding: "8px 12px",
                     cursor: "pointer",
-                    backgroundColor: index === nameHighlightIndex ? "#e0e0e0" : (name === selectedName ? "#f0f0f0" : "white")
+                    backgroundColor: index === cityHighlightIndex ? "#e0e0e0" : "white",
+                    borderBottom: index !== cityOptions.length - 1 ? "1px solid #eee" : "none"
                   }}
-                  onMouseEnter={() => setNameHighlightIndex(index)}
-                  // Direct inline function to handle click
-                  onClick={() => {
-                    handleNameSelect(name);
-                  }}
+                  onMouseEnter={() => setCityHighlightIndex(index)}
+                  onClick={() => handleCitySelect(cityData)}
                 >
-                  {name}
+                  {cityData.city}, {cityData.country}
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        <div id="sign-dropdown-container" style={{ display: "inline-block", position: "relative", marginRight: "10px" }}>
-          <label>Sign: </label>
-          <input
-            type="text"
-            value={signInput}
-            onChange={(e) => {
-              setSignInput(e.target.value);
-              setShowSignDropdown(true);
-            }}
-            onFocus={() => setShowSignDropdown(true)}
-            onKeyDown={handleSignKeyDown}
-            ref={signInputRef}
-            style={{ width: "100px" }}
-            placeholder={selectedSign}
-          />
-          {showSignDropdown && signOptions.length > 0 && (
-            <div 
-              style={{
-                position: "absolute",
-                left: 0,
-                zIndex: 1,
-                background: "white",
-                border: "1px solid #ccc",
-                width: "150px",
-                maxHeight: "200px",
-                overflowY: "auto",
-                textAlign: "left"
-              }}
-            >
-              {signOptions.map((sign, index) => (
-                <div
-                  key={sign}
-                  style={{
-                    padding: "8px 12px",
-                    cursor: "pointer",
-                    backgroundColor: index === signHighlightIndex ? "#e0e0e0" : (sign === selectedSign ? "#f0f0f0" : "white")
-                  }}
-                  onMouseEnter={() => setSignHighlightIndex(index)}
-                  // Direct inline function to handle click
-                  onClick={() => {
-                    handleSignSelect(sign);
-                  }}
-                >
-                  {sign}
-                </div>
-              ))}
+        <div>
+          <label style={{ display: "block", marginBottom: "4px" }}>Manual Coordinates (optional if city selected):</label>
+          <div style={{ display: "flex", gap: "12px" }}>
+            <div style={{ flex: 1 }}>
+              <input
+                type="number"
+                name="latitude"
+                value={chartData.latitude}
+                onChange={handleInputChange}
+                onKeyDown={(e) => handleKeyDown(e, 'latitude')}
+                ref={latitudeInputRef}
+                style={{ width: "100%" }}
+                step="0.000001"
+                min="-90"
+                max="90"
+                placeholder="Latitude (e.g. 40.7128)"
+              />
             </div>
-          )}
+            <div style={{ flex: 1 }}>
+              <input
+                type="number"
+                name="longitude"
+                value={chartData.longitude}
+                onChange={handleInputChange}
+                onKeyDown={(e) => handleKeyDown(e, 'longitude')}
+                ref={longitudeInputRef}
+                style={{ width: "100%" }}
+                step="0.000001"
+                min="-180"
+                max="180"
+                placeholder="Longitude (e.g. -74.0060)"
+              />
+            </div>
+          </div>
         </div>
 
-        <label style={{ marginLeft: "10px" }}>Degree: </label>
-        <input 
-          type="number" 
-          value={degree} 
-          onChange={(e) => setDegree(e.target.value)} 
-          style={{ width: "60px" }}
-          ref={degreeInputRef}
-          onKeyDown={handleDegreeKeyDown}
-        />
-
-        <button 
-          onClick={addEntry} 
-          style={{ marginLeft: "10px" }}
-          ref={addButtonRef}
-        >
-          Add
-        </button>
-        <button onClick={resetEntries} style={{ marginLeft: "10px" }}>Reset</button>
+        <div style={{ marginTop: "12px", display: "flex", gap: "10px", justifyContent: "center" }}>
+          <button 
+            onClick={generateChart}
+            ref={generateButtonRef}
+            style={{ 
+              backgroundColor: "#4CAF50", 
+              color: "white",
+              padding: "8px 16px",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer"
+            }}
+          >
+            Generate Chart
+          </button>
+          
+          <button 
+            onClick={resetEntries}
+            style={{ 
+              backgroundColor: "#f44336", 
+              color: "white",
+              padding: "8px 16px",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer"
+            }}
+          >
+            Reset
+          </button>
+          
+          <button 
+            onClick={downloadImage} 
+            disabled={!imageBlob} 
+            style={{ 
+              backgroundColor: imageBlob ? "#2196F3" : "#ccc", 
+              color: "white",
+              padding: "8px 16px",
+              border: "none",
+              borderRadius: "4px",
+              cursor: imageBlob ? "pointer" : "not-allowed"
+            }}
+          >
+            Download as PNG
+          </button>
+        </div>
       </div>
 
-      <div style={{ marginTop: "20px" }}>
-        <h3>Entries</h3>
-        {entries.length > 0 ? (
-          <ul>
+      {/* Display calculated positions if available */}
+      {entries.length > 0 && (
+        <div style={{ marginTop: "20px" }}>
+          <h3>Calculated Planetary Positions</h3>
+          <div style={{ 
+            display: "grid", 
+            gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+            gap: "10px",
+            maxWidth: "800px",
+            margin: "0 auto"
+          }}>
             {entries.map((entry, index) => (
-              <li key={index}>{entry.name} in {entry.sign} at {entry.degree}°</li>
+              <div key={index} style={{ 
+                border: "1px solid #ddd", 
+                padding: "8px", 
+                borderRadius: "4px",
+                backgroundColor: "#f9f9f9"
+              }}>
+                <strong>{entry.name}</strong>: {entry.sign} {entry.degree.toFixed(2)}°
+              </div>
             ))}
-          </ul>
-        ) : (
-          <p>No entries added yet</p>
-        )}
-      </div>
-
-      <button 
-        onClick={generateChart} 
-        disabled={entries.length === 0} 
-        style={{ 
-          marginRight: "10px",
-          backgroundColor: entries.length > 0 ? "#4CAF50" : "#ccc", 
-          color: "white",
-          padding: "8px 16px",
-          border: "none",
-          borderRadius: "4px",
-          cursor: entries.length > 0 ? "pointer" : "not-allowed"
-        }}
-      >
-        Generate Chart
-      </button>
-      
-      <button 
-        onClick={downloadImage} 
-        disabled={!imageBlob} 
-        style={{ 
-          backgroundColor: imageBlob ? "#4CAF50" : "#ccc", 
-          color: "white",
-          padding: "8px 16px",
-          border: "none",
-          borderRadius: "4px",
-          cursor: imageBlob ? "pointer" : "not-allowed"
-        }}
-      >
-        Download as PNG
-      </button>
+          </div>
+        </div>
+      )}
 
       {/* Chart viewer container - always render it but hide when no image */}
       <div style={{ marginTop: "20px", display: imageData ? "block" : "none" }}>
-        <h3>Generated Chart (Zoomable)</h3>
+        <h3>Chart for {getDisplayLocation()}</h3>
+        <p>{formatDate(chartData.date)} at {chartData.time}</p>
         <div id="chart-viewer" ref={viewerRef} style={{ width: "100%", height: "500px" }}></div>
         <div style={{ marginTop: "10px" }}>
           <button id="zoom-in" style={{ marginRight: "5px" }}>Zoom In</button>
