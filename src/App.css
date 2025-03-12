@@ -6,8 +6,7 @@ body {
   background-repeat: no-repeat;
 }
 
-h2 {
-  font-size: 32px;
+h2, h3, p {
   color: #eeebde;
   font-weight: bold;
   font-style: italic;
@@ -15,43 +14,126 @@ h2 {
   text-align: center;
 }
 
-h3 {
-  font-size: 24px;
-  color: #eeebde;
-  font-weight: bold;
-  font-style: italic;
-  font-family: 'Times New Roman', Times, serif;
-  text-align: center;
-}
+h2 { font-size: 32px; }
+h3 { font-size: 24px; }
+p { font-size: 20px; }
 
-p {
-  font-size: 20px;
-  color: #eeebde;
-  font-weight: bold;
-  font-family: 'Times New Roman', Times, serif;
-  text-align: center;
-}
+
 
 .two-panel-container {
   display: flex;
-  gap: 20px; /* Space between panels */
-  max-width: 1920px; /* Adjust based on need */
+  gap: 20px;
+  max-width: 1920px;
   margin: 0 auto;
+  position: relative; /* Added for absolute positioning of toggle button */
+  width: 100%; /* Ensure full width */
+  overflow-x: hidden; /* Prevent horizontal scroll during transitions */
+  transition: all 0.5s ease; /* Main container transition */
 }
+
+
 
 .two-panel-container h2 {
   color: #ccc;
+}
+
+/* When input panel is collapsed */
+.two-panel-container.collapsed {
+  gap: 0; /* Remove gap when collapsed */
+}
+
+/* When input panel is collapsed */
+.two-panel-container.collapsed .input-panel {
+  transform: translateX(-120%); /* Move it off-screen */
+  opacity: 0;
+  width: 0;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.two-panel-container.collapsed .results-panel {
+  width: 100%; /* Take full width */
+  margin-left: 0; /* Ensure no left margin */
+  flex: 1 0 100%; /* Grow to fill container, don't shrink, and use 100% as basis */
+}
+
+.two-panel-container.collapsed .show-input-button {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Toggle button that protrudes from the input panel */
+.panel-toggle-button {
+  position: absolute;
+  top: 50%;
+  right: -20px; /* Make it protrude */
+  transform: translateY(-50%);
+  background-color: #4caf50;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  z-index: 10; /* Ensure it's above other elements */
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  transition: background-color 0.3s ease;
+}
+
+.panel-toggle-button:hover {
+  background-color: #3e8e41;
+}
+
+
+/* Show button when input panel is hidden */
+.show-input-button {
+  position: fixed;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: #4caf50;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  z-index: 11; /* Above other elements */
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+/* Keep your existing CSS below this point */
+.toggle-button-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 10px;
 }
 
 .input-panel {
   flex: 1;
   padding: 20px;
   border-radius: 8px;
-  background-color: rgba(255, 255, 255, 0.3); /* Translucent effect */
+  background-color: rgba(255, 255, 255, 0.3);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.5);
-
+  transition: transform 0.5s ease, opacity 0.5s ease, width 0.5s ease;
+  width: 25%; /* Define explicit width */
+  min-width: 300px; /* Ensure minimum width */
+  position: relative; /* For the toggle button positioning */
 }
+
 
 .results-panel {
   flex: 4;
@@ -59,10 +141,12 @@ p {
   flex-direction: column;
   padding: 20px;
   border-radius: 8px;
-  background-color: rgba(255, 255, 255, 0.3); /* Translucent effect */
+  background-color: rgba(255, 255, 255, 0.3);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.5);
-
+  transition: flex 0.5s ease, width 0.5s ease; /* Add transition */
+  width: 75%; /* Define explicit width */
+  position: relative;
 }
 
 .input-class {
@@ -143,8 +227,10 @@ p {
 
 .chart-container h3,p {
   background-color: #e6d6df65;
-  padding: 1rem;
+  padding: 0.3rem;
   color: #090909;
+  border: 1px;
+  border-radius: 10px;
 }
 
 #chart-viewer {
@@ -165,7 +251,7 @@ p {
 }
 
 .chart-controls button {
-  background-color: #7a54a0;
+  background-color: #7a54a0ac;
   border: 1px solid #090909;
   color: #f4f4f4;
   border-radius: 4px;
