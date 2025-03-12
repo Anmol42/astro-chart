@@ -459,7 +459,7 @@ function App() {
         calculatePositions: true
       };
       
-      const response = await axios.post("https://fastapi-astro-chart.onrender.com/generate_chart", payload, {
+      const response = await axios.post("http://localhost:8000/generate_chart", payload, {
         headers: { "Content-Type": "application/json" },
         responseType: "blob",
       });
@@ -539,176 +539,181 @@ function App() {
   };
 
   return (
-    <div style={{ textAlign: "center", padding: "20px" }}>
-      <h2>Astrology Chart Generator</h2>
-      <div className="input-class">
-        <div>
-          <label>Date: </label>
-          <input
-            type="date"
-            name="date"
-            value={chartData.date}
-            onChange={handleInputChange}
-            onKeyDown={(e) => handleKeyDown(e, 'date')}
-            ref={dateInputRef}
-            style={{ width: "100%" }}
-            required
-          />
-        </div>
+    <div className="two-panel-container">
+      
+      <div className="input-panel">
+        <h2>Astrology Chart Generator</h2>
+        <div className="input-class">
+          <div>
+            <label>Date: </label>
+            <input
+              type="date"
+              name="date"
+              value={chartData.date}
+              onChange={handleInputChange}
+              onKeyDown={(e) => handleKeyDown(e, 'date')}
+              ref={dateInputRef}
+              style={{ width: "100%" }}
+              required
+            />
+          </div>
 
-        <div>
-          <label>Time (12-hour format): </label>
-          <input
-            type="time"
-            name="time"
-            value={chartData.time}
-            onChange={handleInputChange}
-            onKeyDown={(e) => handleKeyDown(e, 'time')}
-            ref={timeInputRef}
-            style={{ width: "100%" }}
-            step="1" // Allow seconds input
-            required
-          />
-        </div>
+          <div>
+            <label>Time (12-hour format): </label>
+            <input
+              type="time"
+              name="time"
+              value={chartData.time}
+              onChange={handleInputChange}
+              onKeyDown={(e) => handleKeyDown(e, 'time')}
+              ref={timeInputRef}
+              style={{ width: "100%" }}
+              step="1" // Allow seconds input
+              required
+            />
+          </div>
 
-        <div id="city-dropdown-container">
-          <label style={{ display: "block", marginBottom: "4px" }}>City, Country: </label>
-          <input
-            type="text"
-            value={cityInput}
-            onChange={(e) => setCityInput(e.target.value)}
-            onKeyDown={handleCityKeyDown}
-            onFocus={() => {
-              if (cityInput.trim() !== '') {
-                setShowCityDropdown(true);
-              }
-            }}
-            ref={cityInputRef}
-            style={{ width: "100%" }}
-            placeholder="Type to search for a city"
-          />
-          {showCityDropdown && cityOptions.length > 0 && (
-            <div className="dropdown-menu">
-              {cityOptions.map((cityData, index) => (
-                <div className="dropdown-option"
-                  key={`${cityData.city}-${cityData.country}`}
-                  onMouseEnter={() => setCityHighlightIndex(index)}
-                  onClick={() => handleCitySelect(cityData)}
-                >
-                  {cityData.city}, {cityData.country}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+          <div id="city-dropdown-container">
+            <label style={{ display: "block", marginBottom: "4px" }}>City, Country: </label>
+            <input
+              type="text"
+              value={cityInput}
+              onChange={(e) => setCityInput(e.target.value)}
+              onKeyDown={handleCityKeyDown}
+              onFocus={() => {
+                if (cityInput.trim() !== '') {
+                  setShowCityDropdown(true);
+                }
+              }}
+              ref={cityInputRef}
+              style={{ width: "100%" }}
+              placeholder="Type to search for a city"
+            />
+            {showCityDropdown && cityOptions.length > 0 && (
+              <div className="dropdown-menu">
+                {cityOptions.map((cityData, index) => (
+                  <div className="dropdown-option"
+                    key={`${cityData.city}-${cityData.country}`}
+                    onMouseEnter={() => setCityHighlightIndex(index)}
+                    onClick={() => handleCitySelect(cityData)}
+                  >
+                    {cityData.city}, {cityData.country}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-        <div>
-          <label style={{ display: "block", marginBottom: "4px" }}>Manual Coordinates (optional if city selected):</label>
-          <div style={{ display: "flex", gap: "12px" }}>
-            <div style={{ flex: 1 }}>
-              <input
-                type="number"
-                name="latitude"
-                value={chartData.latitude}
-                onChange={handleInputChange}
-                onKeyDown={(e) => handleKeyDown(e, 'latitude')}
-                ref={latitudeInputRef}
-                style={{ width: "100%" }}
-                step="0.001"
-                min="-90"
-                max="90"
-                placeholder="Latitude (e.g. 40.7128)"
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <input
-                type="number"
-                name="longitude"
-                value={chartData.longitude}
-                onChange={handleInputChange}
-                onKeyDown={(e) => handleKeyDown(e, 'longitude')}
-                ref={longitudeInputRef}
-                style={{ width: "100%" }}
-                step="0.001"
-                min="-180"
-                max="180"
-                placeholder="Longitude (e.g. -74.0060)"
-              />
+          <div>
+            <label style={{ display: "block", marginBottom: "4px" }}>Coordinates (optional if city selected):</label>
+            <div style={{ display: "flex", gap: "12px" }}>
+              <div style={{ flex: 1 }}>
+                <input
+                  type="number"
+                  name="latitude"
+                  value={chartData.latitude}
+                  onChange={handleInputChange}
+                  onKeyDown={(e) => handleKeyDown(e, 'latitude')}
+                  ref={latitudeInputRef}
+                  style={{ width: "100%" }}
+                  step="0.001"
+                  min="-90"
+                  max="90"
+                  placeholder="Latitude (e.g. 40.7128)"
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <input
+                  type="number"
+                  name="longitude"
+                  value={chartData.longitude}
+                  onChange={handleInputChange}
+                  onKeyDown={(e) => handleKeyDown(e, 'longitude')}
+                  ref={longitudeInputRef}
+                  style={{ width: "100%" }}
+                  step="0.001"
+                  min="-180"
+                  max="180"
+                  placeholder="Longitude (e.g. -74.0060)"
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div style={{ marginTop: "12px", display: "flex", gap: "10px", justifyContent: "center" }}>
-          <button 
-            onClick={generateChart}
-            ref={generateButtonRef}
-            style={{ 
-              backgroundColor: "#4CAF50", 
-              color: "white",
-              padding: "8px 16px",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer"
-            }}
-          >
-            Generate Chart
-          </button>
-          
-          <button 
-            onClick={resetEntries}
-            style={{ 
-              backgroundColor: "#f44336", 
-              color: "white",
-              padding: "8px 16px",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer"
-            }}
-          >
-            Reset
-          </button>
-          
-          <button 
-            onClick={downloadImage} 
-            disabled={!imageBlob} 
-            style={{ 
-              backgroundColor: imageBlob ? "#2196F3" : "#ccc", 
-              color: "white",
-              padding: "8px 16px",
-              border: "none",
-              borderRadius: "4px",
-              cursor: imageBlob ? "pointer" : "not-allowed"
-            }}
-          >
-            Download as PNG
-          </button>
+          <div style={{ marginTop: "12px", display: "flex", gap: "10px", justifyContent: "center" }}>
+            <button 
+              onClick={generateChart}
+              ref={generateButtonRef}
+              style={{ 
+                backgroundColor: "#4CAF50", 
+                color: "white",
+                padding: "8px 16px",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer"
+              }}
+            >
+              Generate Chart
+            </button>
+            
+            <button 
+              onClick={resetEntries}
+              style={{ 
+                backgroundColor: "#f44336", 
+                color: "white",
+                padding: "8px 16px",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer"
+              }}
+            >
+              Reset
+            </button>
+            
+            <button 
+              onClick={downloadImage} 
+              disabled={!imageBlob} 
+              style={{ 
+                backgroundColor: imageBlob ? "#2196F3" : "#ccc", 
+                color: "white",
+                padding: "8px 16px",
+                border: "none",
+                borderRadius: "4px",
+                cursor: imageBlob ? "pointer" : "not-allowed"
+              }}
+            >
+              Download as PNG
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Display calculated positions if available */}
-      {entries.length > 0 && (
-        <div className= "planet-positions">
-          <h3>Calculated Planetary Positions</h3>
-          <div className = "planet-grid">
-            {entries.map((entry, index) => (
-              <div key={index} className="planet-card">
-                <strong>{entry.name}</strong>: {entry.sign} {entry.degree.toFixed(2)}°
-              </div>
-            ))}
+      <div className="results-panel">
+        {/* Chart viewer container - 70% height */}
+        <div className="chart-container">
+          <h3>Chart for {getDisplayLocation()}</h3>
+          <p>{formatDate(chartData.date)} at {chartData.time}</p>
+          <div id="chart-viewer" ref={viewerRef}></div>
+          <div className="chart-controls">
+            <button id="zoom-in">Zoom In</button>
+            <button id="zoom-out">Zoom Out</button>
+            <button id="reset">Reset</button>
           </div>
         </div>
-      )}
 
-      {/* Chart viewer container - always render it but hide when no image */}
-      <div className="chart-container">
-        <h3>Chart for {getDisplayLocation()}</h3>
-        <p>{formatDate(chartData.date)} at {chartData.time}</p>
-        <div id="chart-viewer" ref={viewerRef}></div>
-        <div className="chart-controls">
-          <button id="zoom-in">Zoom In</button>
-          <button id="zoom-out">Zoom Out</button>
-          <button id="reset">Reset</button>
-        </div>
+        {/* Planet positions - 30% height */}
+        {entries.length > 0 && (
+          <div className="planet-positions">
+            <h3>Calculated Planetary Positions</h3>
+            <div className="planet-grid">
+              {entries.map((entry, index) => (
+                <div key={index} className="planet-card">
+                  <strong>{entry.name}</strong>: {entry.sign} {entry.degree.toFixed(2)}°
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
