@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import OpenSeadragon from "openseadragon";
+import "./App.css"
 
 
 // Common cities with their latitude and longitude
@@ -96,7 +97,6 @@ const cityDatabase = [
   { city: "Raipur", country: "India", latitude: 21.2514, longitude: 81.6296 },
   { city: "Kochi", country: "India", latitude: 9.9312, longitude: 76.2673 },
   { city: "Bhubaneswar", country: "India", latitude: 20.2961, longitude: 85.8245 },
-  { city: "Bhopal", country: "India", latitude: 23.2599, longitude: 77.4126 },
   { city: "Bikaner", country: "India", latitude: 28.0229, longitude: 73.3119 },
   { city: "Bhilai", country: "India", latitude: 21.1938, longitude: 81.3509 },
   { city: "Puducherry", country: "India", latitude: 11.9139, longitude: 79.8145 },
@@ -189,18 +189,27 @@ function App() {
   
   // Initialize OpenSeadragon viewer once
   useEffect(() => {
+
+    const timer = setTimeout(() =>{
     if (viewerRef.current && !osdViewer.current) {
-      osdViewer.current = OpenSeadragon({
-        id: "chart-viewer",
-        prefixUrl: "https://openseadragon.github.io/openseadragon/images/", // Necessary for UI icons
-        showNavigator: true,
-        zoomInButton: "zoom-in",
-        zoomOutButton: "zoom-out",
-        homeButton: "reset",
-      });
+      try {
+        osdViewer.current = OpenSeadragon({
+          id: "chart-viewer",
+          prefixUrl: "https://openseadragon.github.io/openseadragon/images/",
+          showNavigator: true,
+          zoomInButton: "zoom-in",
+          zoomOutButton: "zoom-out",
+          homeButton: "reset",
+          debugMode: true  // Add this to see more detailed logs
+        });
+      } catch (error) {
+        console.error("Error initializing OpenSeadragon viewer:", error);
+      }
     }
+  }, 100);
     
     return () => {
+      clearTimeout(timer);
       if (osdViewer.current) {
         osdViewer.current.destroy();
         osdViewer.current = null;
@@ -209,12 +218,23 @@ function App() {
   }, []);
 
   // Update the tile source when the image changes
-  useEffect(() => {
+    useEffect(() => {
     if (imageData && osdViewer.current) {
-      osdViewer.current.open({
-        type: "image",
-        url: imageData
-      });
+      // Add a console log to debug
+      console.log("Loading image into OSD:", imageData);
+      
+      // Force cleanup of any previous image
+      if (osdViewer.current.world && osdViewer.current.world.getItemCount() > 0) {
+        osdViewer.current.world.removeAll();
+      }
+      
+      // Try with a timeout to ensure viewer is ready
+      setTimeout(() => {
+        osdViewer.current.open({
+          type: "image",
+          url: imageData
+        });
+      }, 100);
     }
   }, [imageData]);
   
@@ -458,7 +478,7 @@ function App() {
         calculatePositions: true
       };
       
-      const response = await axios.post("https://fastapi-astro-chart.onrender.com/generate_chart", payload, {
+      const response = await axios.post("http://localhost:8000/generate_chart", payload, {
         headers: { "Content-Type": "application/json" },
         responseType: "blob",
       });
@@ -470,7 +490,7 @@ function App() {
       
       // Request the calculated positions to display them
       try {
-        const positionsResponse = await axios.post("https://fastapi-astro-chart.onrender.com/get_positions", payload, {
+        const positionsResponse = await axios.post("http://localhost:8000/get_positions", payload, {
           headers: { "Content-Type": "application/json" },
         });
         
@@ -538,213 +558,178 @@ function App() {
   };
 
   return (
-    <div style={{ textAlign: "center", padding: "20px" }}>
-      <h2>Astrology Chart Generator</h2>
-      <div style={{ 
-        display: "flex", 
-        flexDirection: "column", 
-        maxWidth: "500px", 
-        margin: "0 auto",
-        textAlign: "left",
-        gap: "12px"
-      }}>
-        <div>
-          <label style={{ display: "block", marginBottom: "4px" }}>Date: </label>
-          <input
-            type="date"
-            name="date"
-            value={chartData.date}
-            onChange={handleInputChange}
-            onKeyDown={(e) => handleKeyDown(e, 'date')}
-            ref={dateInputRef}
-            style={{ width: "100%" }}
-            required
-          />
-        </div>
+    <div className="astrology-app">
+      <header>
+        <h1>Astrology Chart Generator</h1>
+      </header>
+      
+      <div className="two-panel-container">
+        {/* Left Panel - Input Form */}
+        <div className="panel input-panel">
+          <h2>Enter Chart Details</h2>
+          <div className="form-container">
+            <div className="form-group">
+              <label>Date:</label>
+              <input
+                type="date"
+                name="date"
+                value={chartData.date}
+                onChange={handleInputChange}
+                onKeyDown={(e) => handleKeyDown(e, 'date')}
+                ref={dateInputRef}
+                required
+              />
+            </div>
 
-        <div>
-          <label style={{ display: "block", marginBottom: "4px" }}>Time (12-hour format): </label>
-          <input
-            type="time"
-            name="time"
-            value={chartData.time}
-            onChange={handleInputChange}
-            onKeyDown={(e) => handleKeyDown(e, 'time')}
-            ref={timeInputRef}
-            style={{ width: "100%" }}
-            step="1" // Allow seconds input
-            required
-          />
-        </div>
+            <div className="form-group">
+              <label>Time (12-hour format):</label>
+              <input
+                type="time"
+                name="time"
+                value={chartData.time}
+                onChange={handleInputChange}
+                onKeyDown={(e) => handleKeyDown(e, 'time')}
+                ref={timeInputRef}
+                step="1"
+                required
+              />
+            </div>
 
-        <div id="city-dropdown-container" style={{ position: "relative" }}>
-          <label style={{ display: "block", marginBottom: "4px" }}>City, Country: </label>
-          <input
-            type="text"
-            value={cityInput}
-            onChange={(e) => setCityInput(e.target.value)}
-            onKeyDown={handleCityKeyDown}
-            onFocus={() => {
-              if (cityInput.trim() !== '') {
-                setShowCityDropdown(true);
-              }
-            }}
-            ref={cityInputRef}
-            style={{ width: "100%" }}
-            placeholder="Type to search for a city"
-          />
-          {showCityDropdown && cityOptions.length > 0 && (
-            <div 
-              style={{
-                position: "absolute",
-                left: 0,
-                right: 0,
-                zIndex: 10,
-                background: "white",
-                border: "1px solid #ccc",
-                maxHeight: "200px",
-                overflowY: "auto",
-                boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
-                borderRadius: "4px",
-                marginTop: "2px"
-              }}
-            >
-              {cityOptions.map((cityData, index) => (
-                <div
-                  key={`${cityData.city}-${cityData.country}`}
-                  style={{
-                    padding: "8px 12px",
-                    cursor: "pointer",
-                    backgroundColor: index === cityHighlightIndex ? "#e0e0e0" : "white",
-                    borderBottom: index !== cityOptions.length - 1 ? "1px solid #eee" : "none"
-                  }}
-                  onMouseEnter={() => setCityHighlightIndex(index)}
-                  onClick={() => handleCitySelect(cityData)}
-                >
-                  {cityData.city}, {cityData.country}
+            <div id="city-dropdown-container" className="form-group">
+              <label>City, Country:</label>
+              <input
+                type="text"
+                value={cityInput}
+                onChange={(e) => setCityInput(e.target.value)}
+                onKeyDown={handleCityKeyDown}
+                onFocus={() => {
+                  if (cityInput.trim() !== '') {
+                    setShowCityDropdown(true);
+                  }
+                }}
+                ref={cityInputRef}
+                placeholder="Type to search for a city"
+              />
+              {showCityDropdown && cityOptions.length > 0 && (
+                <div className="dropdown-menu">
+                  {cityOptions.map((cityData, index) => (
+                    <div
+                      key={`${cityData.city}-${cityData.country}`}
+                      className={`dropdown-item ${index === cityHighlightIndex ? 'highlighted' : ''}`}
+                      onMouseEnter={() => setCityHighlightIndex(index)}
+                      onClick={() => handleCitySelect(cityData)}
+                    >
+                      {cityData.city}, {cityData.country}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </div>
 
-        <div>
-          <label style={{ display: "block", marginBottom: "4px" }}>Manual Coordinates (optional if city selected):</label>
-          <div style={{ display: "flex", gap: "12px" }}>
-            <div style={{ flex: 1 }}>
-              <input
-                type="number"
-                name="latitude"
-                value={chartData.latitude}
-                onChange={handleInputChange}
-                onKeyDown={(e) => handleKeyDown(e, 'latitude')}
-                ref={latitudeInputRef}
-                style={{ width: "100%" }}
-                step="0.000001"
-                min="-90"
-                max="90"
-                placeholder="Latitude (e.g. 40.7128)"
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <input
-                type="number"
-                name="longitude"
-                value={chartData.longitude}
-                onChange={handleInputChange}
-                onKeyDown={(e) => handleKeyDown(e, 'longitude')}
-                ref={longitudeInputRef}
-                style={{ width: "100%" }}
-                step="0.000001"
-                min="-180"
-                max="180"
-                placeholder="Longitude (e.g. -74.0060)"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div style={{ marginTop: "12px", display: "flex", gap: "10px", justifyContent: "center" }}>
-          <button 
-            onClick={generateChart}
-            ref={generateButtonRef}
-            style={{ 
-              backgroundColor: "#4CAF50", 
-              color: "white",
-              padding: "8px 16px",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer"
-            }}
-          >
-            Generate Chart
-          </button>
-          
-          <button 
-            onClick={resetEntries}
-            style={{ 
-              backgroundColor: "#f44336", 
-              color: "white",
-              padding: "8px 16px",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer"
-            }}
-          >
-            Reset
-          </button>
-          
-          <button 
-            onClick={downloadImage} 
-            disabled={!imageBlob} 
-            style={{ 
-              backgroundColor: imageBlob ? "#2196F3" : "#ccc", 
-              color: "white",
-              padding: "8px 16px",
-              border: "none",
-              borderRadius: "4px",
-              cursor: imageBlob ? "pointer" : "not-allowed"
-            }}
-          >
-            Download as PNG
-          </button>
-        </div>
-      </div>
-
-      {/* Display calculated positions if available */}
-      {entries.length > 0 && (
-        <div style={{ marginTop: "20px" }}>
-          <h3>Calculated Planetary Positions</h3>
-          <div style={{ 
-            display: "grid", 
-            gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-            gap: "10px",
-            maxWidth: "800px",
-            margin: "0 auto"
-          }}>
-            {entries.map((entry, index) => (
-              <div key={index} style={{ 
-                border: "1px solid #ddd", 
-                padding: "8px", 
-                borderRadius: "4px",
-                backgroundColor: "#f9f9f9"
-              }}>
-                <strong>{entry.name}</strong>: {entry.sign} {entry.degree.toFixed(2)}°
+            <div className="form-group">
+              <label>Manual Coordinates (optional if city selected):</label>
+              <div className="coordinates-container">
+                <input
+                  type="number"
+                  name="latitude"
+                  value={chartData.latitude}
+                  onChange={handleInputChange}
+                  onKeyDown={(e) => handleKeyDown(e, 'latitude')}
+                  ref={latitudeInputRef}
+                  step="0.000001"
+                  min="-90"
+                  max="90"
+                  placeholder="Latitude (e.g. 40.7128)"
+                />
+                <input
+                  type="number"
+                  name="longitude"
+                  value={chartData.longitude}
+                  onChange={handleInputChange}
+                  onKeyDown={(e) => handleKeyDown(e, 'longitude')}
+                  ref={longitudeInputRef}
+                  step="0.000001"
+                  min="-180"
+                  max="180"
+                  placeholder="Longitude (e.g. -74.0060)"
+                />
               </div>
-            ))}
+            </div>
+
+            <div className="button-group">
+              <button 
+                onClick={generateChart}
+                ref={generateButtonRef}
+                className="btn generate-btn"
+              >
+                Generate Chart
+              </button>
+              
+              <button 
+                onClick={resetEntries}
+                className="btn reset-btn"
+              >
+                Reset
+              </button>
+              
+              <button 
+                onClick={downloadImage} 
+                disabled={!imageBlob} 
+                className={`btn download-btn ${!imageBlob ? 'disabled' : ''}`}
+              >
+                Download as PNG
+              </button>
+            </div>
           </div>
         </div>
-      )}
-
-      {/* Chart viewer container - always render it but hide when no image */}
-      <div style={{ marginTop: "20px", display: imageData ? "block" : "none" }}>
-        <h3>Chart for {getDisplayLocation()}</h3>
-        <p>{formatDate(chartData.date)} at {chartData.time}</p>
-        <div id="chart-viewer" ref={viewerRef} style={{ width: "100%", height: "500px" }}></div>
-        <div style={{ marginTop: "10px" }}>
-          <button id="zoom-in" style={{ marginRight: "5px" }}>Zoom In</button>
-          <button id="zoom-out" style={{ marginRight: "5px" }}>Zoom Out</button>
-          <button id="reset">Reset</button>
+        
+        {/* Right Panel - Results */}
+        <div className="panel results-panel">
+          <h2>Chart Results</h2>
+          
+          {!imageData && !entries.length ? (
+            <div className="empty-state">
+              <p>Enter your details and click "Generate Chart" to see your astrological chart</p>
+            </div>
+          ) : (
+            <>
+              {/* Chart Information */}
+              <div className="chart-info">
+                <h3>Chart for {getDisplayLocation()}</h3>
+                <p>{formatDate(chartData.date)} at {chartData.time}</p>
+              </div>
+              
+              {/* Chart Viewer */}
+              {imageData && (
+                <div className="chart-viewer-container">
+                  <div id="chart-viewer" ref={viewerRef} style={{ width: "100%", height: "400px" }}></div>
+                  {/* Debug info */}
+                  {/* <div style={{fontSize: '12px', color: '#666', marginTop: '5px'}}>
+                    Image URL length: {imageData.length} characters
+                  </div> */}
+                  <div className="chart-controls">
+                    <button id="zoom-in">Zoom In</button>
+                    <button id="zoom-out">Zoom Out</button>
+                    <button id="reset">Reset</button>
+                  </div>
+                </div>
+              )}
+              
+              {/* Planet Positions */}
+              {entries.length > 0 && (
+                <div className="planet-positions">
+                  <h3>Planetary Positions</h3>
+                  <div className="planet-grid">
+                    {entries.map((entry, index) => (
+                      <div key={index} className="planet-card">
+                        <strong>{entry.name}</strong>: {entry.sign} {entry.degree.toFixed(2)}°
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
