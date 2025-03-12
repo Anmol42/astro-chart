@@ -158,8 +158,9 @@ const cityDatabase = [
   { city: "Kakinada", country: "India", latitude: 16.9891, longitude: 82.2475 }
 ];
 
-function App() {
+function AstrologyChartGenerator() {
   const [entries, setEntries] = useState([]);
+  const [isInputVisible, setIsInputVisible] = useState(true); // Track panel visibility
   const [chartData, setChartData] = useState({
     date: "",
     time: "",
@@ -460,11 +461,25 @@ function App() {
 
   const resetEntries = () => {
     setEntries([]);
-    setImageData(null);
+    // Clear image states and revoke any object URLs to prevent memory leaks
+    if (imageData) {
+      URL.revokeObjectURL(imageData);
+      setImageData(null);
+    }
     setImageBlob(null);
+
+    // Reset form fields
     resetForm();
+
+    // Reset OpenSeadragon viewer if it exists
+    if (osdViewer.current) {
+      osdViewer.current.world.removeAll();
+      osdViewer.current.viewport.goHome(true);
+    }
+
+    // Focus on the first input field
     dateInputRef.current.focus();
-  };
+};
 
   const generateChart = async () => {
     if (!validateInput()) return;
@@ -561,10 +576,18 @@ function App() {
   };
 
   return (
-    <div className="two-panel-container">
+    <div className={`two-panel-container ${isInputVisible ? "open" : "collapsed"}`}>
       
       <div className="input-panel">
         <h2>Astrology Chart Generator</h2>
+        {/* Toggle button that protrudes from the panel */}
+      <button 
+        className="panel-toggle-button" 
+        onClick={() => setIsInputVisible(false)}
+        aria-label="Hide input panel"
+      >
+        &lt;&lt;
+      </button>
         <div className="input-class">
           <div>
             <label>Date: </label>
@@ -711,10 +734,17 @@ function App() {
       </div>
 
       <div className="results-panel">
+        {/* Show button to bring back input panel (only visible when input is hidden) */}
+        <button 
+          className="show-input-button"
+          onClick={() => setIsInputVisible(true)}
+          aria-label="Show input panel"
+        >
+          &gt;&gt;
+        </button>
         {/* Chart viewer container - 70% height */}
         <div className="chart-container">
-          <h3>Chart for {getDisplayLocation()}</h3>
-          <p>{formatDate(chartData.date)} at {chartData.time}</p>
+          <h3>Chart for {getDisplayLocation()}, {formatDate(chartData.date)} at {chartData.time}</h3>
           <div id="chart-viewer" ref={viewerRef}></div>
           <div className="chart-controls">
             <button id="zoom-in">Zoom In</button>
@@ -741,4 +771,4 @@ function App() {
   );
 }
 
-export default App;
+export default AstrologyChartGenerator;
