@@ -558,77 +558,75 @@ function App() {
   };
 
   return (
-    <div className="astrology-app">
-      <header>
-        <h1>Astrology Chart Generator</h1>
-      </header>
+    <div className="two-panel-container">
       
-      <div className="two-panel-container">
-        {/* Left Panel - Input Form */}
-        <div className="panel input-panel">
-          <h2>Enter Chart Details</h2>
-          <div className="form-container">
-            <div className="form-group">
-              <label>Date:</label>
-              <input
-                type="date"
-                name="date"
-                value={chartData.date}
-                onChange={handleInputChange}
-                onKeyDown={(e) => handleKeyDown(e, 'date')}
-                ref={dateInputRef}
-                required
-              />
-            </div>
+      <div className="input-panel">
+        <h2>Astrology Chart Generator</h2>
+        <div className="input-class">
+          <div>
+            <label>Date: </label>
+            <input
+              type="date"
+              name="date"
+              value={chartData.date}
+              onChange={handleInputChange}
+              onKeyDown={(e) => handleKeyDown(e, 'date')}
+              ref={dateInputRef}
+              style={{ width: "100%" }}
+              required
+            />
+          </div>
 
-            <div className="form-group">
-              <label>Time (12-hour format):</label>
-              <input
-                type="time"
-                name="time"
-                value={chartData.time}
-                onChange={handleInputChange}
-                onKeyDown={(e) => handleKeyDown(e, 'time')}
-                ref={timeInputRef}
-                step="1"
-                required
-              />
-            </div>
+          <div>
+            <label>Time (12-hour format): </label>
+            <input
+              type="time"
+              name="time"
+              value={chartData.time}
+              onChange={handleInputChange}
+              onKeyDown={(e) => handleKeyDown(e, 'time')}
+              ref={timeInputRef}
+              style={{ width: "100%" }}
+              step="1" // Allow seconds input
+              required
+            />
+          </div>
 
-            <div id="city-dropdown-container" className="form-group">
-              <label>City, Country:</label>
-              <input
-                type="text"
-                value={cityInput}
-                onChange={(e) => setCityInput(e.target.value)}
-                onKeyDown={handleCityKeyDown}
-                onFocus={() => {
-                  if (cityInput.trim() !== '') {
-                    setShowCityDropdown(true);
-                  }
-                }}
-                ref={cityInputRef}
-                placeholder="Type to search for a city"
-              />
-              {showCityDropdown && cityOptions.length > 0 && (
-                <div className="dropdown-menu">
-                  {cityOptions.map((cityData, index) => (
-                    <div
-                      key={`${cityData.city}-${cityData.country}`}
-                      className={`dropdown-item ${index === cityHighlightIndex ? 'highlighted' : ''}`}
-                      onMouseEnter={() => setCityHighlightIndex(index)}
-                      onClick={() => handleCitySelect(cityData)}
-                    >
-                      {cityData.city}, {cityData.country}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+          <div id="city-dropdown-container">
+            <label style={{ display: "block", marginBottom: "4px" }}>City, Country: </label>
+            <input
+              type="text"
+              value={cityInput}
+              onChange={(e) => setCityInput(e.target.value)}
+              onKeyDown={handleCityKeyDown}
+              onFocus={() => {
+                if (cityInput.trim() !== '') {
+                  setShowCityDropdown(true);
+                }
+              }}
+              ref={cityInputRef}
+              style={{ width: "100%" }}
+              placeholder="Type to search for a city"
+            />
+            {showCityDropdown && cityOptions.length > 0 && (
+              <div className="dropdown-menu">
+                {cityOptions.map((cityData, index) => (
+                  <div className="dropdown-option"
+                    key={`${cityData.city}-${cityData.country}`}
+                    onMouseEnter={() => setCityHighlightIndex(index)}
+                    onClick={() => handleCitySelect(cityData)}
+                  >
+                    {cityData.city}, {cityData.country}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-            <div className="form-group">
-              <label>Manual Coordinates (optional if city selected):</label>
-              <div className="coordinates-container">
+          <div>
+            <label style={{ display: "block", marginBottom: "4px" }}>Coordinates (optional if city selected):</label>
+            <div style={{ display: "flex", gap: "12px" }}>
+              <div style={{ flex: 1 }}>
                 <input
                   type="number"
                   name="latitude"
@@ -636,11 +634,14 @@ function App() {
                   onChange={handleInputChange}
                   onKeyDown={(e) => handleKeyDown(e, 'latitude')}
                   ref={latitudeInputRef}
-                  step="0.000001"
+                  style={{ width: "100%" }}
+                  step="0.001"
                   min="-90"
                   max="90"
                   placeholder="Latitude (e.g. 40.7128)"
                 />
+              </div>
+              <div style={{ flex: 1 }}>
                 <input
                   type="number"
                   name="longitude"
@@ -648,89 +649,90 @@ function App() {
                   onChange={handleInputChange}
                   onKeyDown={(e) => handleKeyDown(e, 'longitude')}
                   ref={longitudeInputRef}
-                  step="0.000001"
+                  style={{ width: "100%" }}
+                  step="0.001"
                   min="-180"
                   max="180"
                   placeholder="Longitude (e.g. -74.0060)"
                 />
               </div>
             </div>
+          </div>
 
-            <div className="button-group">
-              <button 
-                onClick={generateChart}
-                ref={generateButtonRef}
-                className="btn generate-btn"
-              >
-                Generate Chart
-              </button>
-              
-              <button 
-                onClick={resetEntries}
-                className="btn reset-btn"
-              >
-                Reset
-              </button>
-              
-              <button 
-                onClick={downloadImage} 
-                disabled={!imageBlob} 
-                className={`btn download-btn ${!imageBlob ? 'disabled' : ''}`}
-              >
-                Download as PNG
-              </button>
-            </div>
+          <div style={{ marginTop: "12px", display: "flex", gap: "10px", justifyContent: "center" }}>
+            <button 
+              onClick={generateChart}
+              ref={generateButtonRef}
+              style={{ 
+                backgroundColor: "#4CAF50", 
+                color: "white",
+                padding: "8px 16px",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer"
+              }}
+            >
+              Generate Chart
+            </button>
+            
+            <button 
+              onClick={resetEntries}
+              style={{ 
+                backgroundColor: "#f44336", 
+                color: "white",
+                padding: "8px 16px",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer"
+              }}
+            >
+              Reset
+            </button>
+            
+            <button 
+              onClick={downloadImage} 
+              disabled={!imageBlob} 
+              style={{ 
+                backgroundColor: imageBlob ? "#2196F3" : "#ccc", 
+                color: "white",
+                padding: "8px 16px",
+                border: "none",
+                borderRadius: "4px",
+                cursor: imageBlob ? "pointer" : "not-allowed"
+              }}
+            >
+              Download as PNG
+            </button>
           </div>
         </div>
-        
-        {/* Right Panel - Results */}
-        <div className="panel results-panel">
-          <h2>Chart Results</h2>
-          
-          {!imageData && !entries.length ? (
-            <div className="empty-state">
-              <p>Enter your details and click "Generate Chart" to see your astrological chart</p>
-            </div>
-          ) : (
-            <>
-              {/* Chart Information */}
-              <div className="chart-info">
-                <h3>Chart for {getDisplayLocation()}</h3>
-                <p>{formatDate(chartData.date)} at {chartData.time}</p>
-              </div>
-              
-              {/* Chart Viewer */}
-              {imageData && (
-                <div className="chart-viewer-container">
-                  <div id="chart-viewer" ref={viewerRef} style={{ width: "100%", height: "400px" }}></div>
-                  {/* Debug info */}
-                  {/* <div style={{fontSize: '12px', color: '#666', marginTop: '5px'}}>
-                    Image URL length: {imageData.length} characters
-                  </div> */}
-                  <div className="chart-controls">
-                    <button id="zoom-in">Zoom In</button>
-                    <button id="zoom-out">Zoom Out</button>
-                    <button id="reset">Reset</button>
-                  </div>
-                </div>
-              )}
-              
-              {/* Planet Positions */}
-              {entries.length > 0 && (
-                <div className="planet-positions">
-                  <h3>Planetary Positions</h3>
-                  <div className="planet-grid">
-                    {entries.map((entry, index) => (
-                      <div key={index} className="planet-card">
-                        <strong>{entry.name}</strong>: {entry.sign} {entry.degree.toFixed(2)}°
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
+      </div>
+
+      <div className="results-panel">
+        {/* Chart viewer container - 70% height */}
+        <div className="chart-container">
+          <h3>Chart for {getDisplayLocation()}</h3>
+          <p>{formatDate(chartData.date)} at {chartData.time}</p>
+          <div id="chart-viewer" ref={viewerRef}></div>
+          <div className="chart-controls">
+            <button id="zoom-in">Zoom In</button>
+            <button id="zoom-out">Zoom Out</button>
+            <button id="reset">Reset</button>
+          </div>
         </div>
+
+        {/* Planet positions - 30% height */}
+        {entries.length > 0 && (
+          <div className="planet-positions">
+            <h3>Calculated Planetary Positions</h3>
+            <div className="planet-grid">
+              {entries.map((entry, index) => (
+                <div key={index} className="planet-card">
+                  <strong>{entry.name}</strong>: {entry.sign} {entry.degree.toFixed(2)}°
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
