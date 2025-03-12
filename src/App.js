@@ -478,7 +478,7 @@ function App() {
         calculatePositions: true
       };
       
-      const response = await axios.post("http://localhost:8000/generate_chart", payload, {
+      const response = await axios.post("https://fastapi-astro-chart.onrender.com/generate_chart", payload, {
         headers: { "Content-Type": "application/json" },
         responseType: "blob",
       });
@@ -490,7 +490,7 @@ function App() {
       
       // Request the calculated positions to display them
       try {
-        const positionsResponse = await axios.post("http://localhost:8000/get_positions", payload, {
+        const positionsResponse = await axios.post("https://fastapi-astro-chart.onrender.com/get_positions", payload, {
           headers: { "Content-Type": "application/json" },
         });
         
