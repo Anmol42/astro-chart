@@ -459,7 +459,7 @@ function App() {
         calculatePositions: true
       };
       
-      const response = await axios.post("https://fastapi-astro-chart.onrender.com/generate_chart", payload, {
+      const response = await axios.post("http://localhost:8000/generate_chart", payload, {
         headers: { "Content-Type": "application/json" },
         responseType: "blob",
       });
@@ -590,14 +590,8 @@ function App() {
           {showCityDropdown && cityOptions.length > 0 && (
             <div className="dropdown-menu">
               {cityOptions.map((cityData, index) => (
-                <div
+                <div className="dropdown-option"
                   key={`${cityData.city}-${cityData.country}`}
-                  style={{
-                    padding: "8px 12px",
-                    cursor: "pointer",
-                    backgroundColor: index === cityHighlightIndex ? "#e0e0e0" : "white",
-                    borderBottom: index !== cityOptions.length - 1 ? "1px solid #eee" : "none"
-                  }}
                   onMouseEnter={() => setCityHighlightIndex(index)}
                   onClick={() => handleCitySelect(cityData)}
                 >
@@ -620,7 +614,7 @@ function App() {
                 onKeyDown={(e) => handleKeyDown(e, 'latitude')}
                 ref={latitudeInputRef}
                 style={{ width: "100%" }}
-                step="0.000001"
+                step="0.001"
                 min="-90"
                 max="90"
                 placeholder="Latitude (e.g. 40.7128)"
@@ -635,7 +629,7 @@ function App() {
                 onKeyDown={(e) => handleKeyDown(e, 'longitude')}
                 ref={longitudeInputRef}
                 style={{ width: "100%" }}
-                step="0.000001"
+                step="0.001"
                 min="-180"
                 max="180"
                 placeholder="Longitude (e.g. -74.0060)"
