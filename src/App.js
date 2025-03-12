@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import OpenSeadragon from "openseadragon";
+import "./App.css"
 
 
 // Common cities with their latitude and longitude
@@ -458,7 +459,7 @@ function App() {
         calculatePositions: true
       };
       
-      const response = await axios.post("https://fastapi-astro-chart.onrender.com/generate_chart", payload, {
+      const response = await axios.post("http://localhost:8000/generate_chart", payload, {
         headers: { "Content-Type": "application/json" },
         responseType: "blob",
       });
@@ -540,16 +541,9 @@ function App() {
   return (
     <div style={{ textAlign: "center", padding: "20px" }}>
       <h2>Astrology Chart Generator</h2>
-      <div style={{ 
-        display: "flex", 
-        flexDirection: "column", 
-        maxWidth: "500px", 
-        margin: "0 auto",
-        textAlign: "left",
-        gap: "12px"
-      }}>
+      <div className="input-class">
         <div>
-          <label style={{ display: "block", marginBottom: "4px" }}>Date: </label>
+          <label>Date: </label>
           <input
             type="date"
             name="date"
@@ -563,7 +557,7 @@ function App() {
         </div>
 
         <div>
-          <label style={{ display: "block", marginBottom: "4px" }}>Time (12-hour format): </label>
+          <label>Time (12-hour format): </label>
           <input
             type="time"
             name="time"
@@ -577,7 +571,7 @@ function App() {
           />
         </div>
 
-        <div id="city-dropdown-container" style={{ position: "relative" }}>
+        <div id="city-dropdown-container">
           <label style={{ display: "block", marginBottom: "4px" }}>City, Country: </label>
           <input
             type="text"
@@ -594,21 +588,7 @@ function App() {
             placeholder="Type to search for a city"
           />
           {showCityDropdown && cityOptions.length > 0 && (
-            <div 
-              style={{
-                position: "absolute",
-                left: 0,
-                right: 0,
-                zIndex: 10,
-                background: "white",
-                border: "1px solid #ccc",
-                maxHeight: "200px",
-                overflowY: "auto",
-                boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
-                borderRadius: "4px",
-                marginTop: "2px"
-              }}
-            >
+            <div className="dropdown-menu">
               {cityOptions.map((cityData, index) => (
                 <div
                   key={`${cityData.city}-${cityData.country}`}
@@ -713,22 +693,11 @@ function App() {
 
       {/* Display calculated positions if available */}
       {entries.length > 0 && (
-        <div style={{ marginTop: "20px" }}>
+        <div className= "planet-positions">
           <h3>Calculated Planetary Positions</h3>
-          <div style={{ 
-            display: "grid", 
-            gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-            gap: "10px",
-            maxWidth: "800px",
-            margin: "0 auto"
-          }}>
+          <div className = "planet-grid">
             {entries.map((entry, index) => (
-              <div key={index} style={{ 
-                border: "1px solid #ddd", 
-                padding: "8px", 
-                borderRadius: "4px",
-                backgroundColor: "#f9f9f9"
-              }}>
+              <div key={index} className="planet-card">
                 <strong>{entry.name}</strong>: {entry.sign} {entry.degree.toFixed(2)}°
               </div>
             ))}
@@ -737,13 +706,13 @@ function App() {
       )}
 
       {/* Chart viewer container - always render it but hide when no image */}
-      <div style={{ marginTop: "20px", display: imageData ? "block" : "none" }}>
+      <div className="chart-container">
         <h3>Chart for {getDisplayLocation()}</h3>
         <p>{formatDate(chartData.date)} at {chartData.time}</p>
-        <div id="chart-viewer" ref={viewerRef} style={{ width: "100%", height: "500px" }}></div>
-        <div style={{ marginTop: "10px" }}>
-          <button id="zoom-in" style={{ marginRight: "5px" }}>Zoom In</button>
-          <button id="zoom-out" style={{ marginRight: "5px" }}>Zoom Out</button>
+        <div id="chart-viewer" ref={viewerRef}></div>
+        <div className="chart-controls">
+          <button id="zoom-in">Zoom In</button>
+          <button id="zoom-out">Zoom Out</button>
           <button id="reset">Reset</button>
         </div>
       </div>
