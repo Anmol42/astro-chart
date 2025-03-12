@@ -197,10 +197,13 @@ function App() {
           id: "chart-viewer",
           prefixUrl: "https://openseadragon.github.io/openseadragon/images/",
           showNavigator: true,
+          navigatorPosition: "TOP_RIGHT", // Positions the navigator
+          navigatorSizeRatio: 0.2, // Adjusts the size of the navigator
+          navigatorAutoFade: true,
           zoomInButton: "zoom-in",
           zoomOutButton: "zoom-out",
           homeButton: "reset",
-          debugMode: true  // Add this to see more detailed logs
+          // debugMode: true  // Add this to see more detailed logs
         });
       } catch (error) {
         console.error("Error initializing OpenSeadragon viewer:", error);
