@@ -10,7 +10,7 @@ const GEOCODE_DEBOUNCE_MS = 350;
 // (e.g. re-typing the same city) don't re-hit the API.
 const geocodeCache = new Map();
 
-async function geocodeCity(query) {
+async function geocodeCity(query, signal) {
   const cacheKey = query.trim().toLowerCase();
   if (geocodeCache.has(cacheKey)) {
     return geocodeCache.get(cacheKey);
@@ -23,6 +23,7 @@ async function geocodeCity(query) {
       addressdetails: 1,
       limit: 8,
     },
+    signal,
   });
 
   const results = response.data.map((place) => {
@@ -52,7 +53,8 @@ function AstrologyChartGenerator() {
     latitude: "",
     longitude: "",
     city: "",
-    country: ""
+    country: "",
+    timeFormat: "local" // "local" (relative to lat/lon) or "utc"
   });
   const [imageData, setImageData] = useState(null);
   const [imageBlob, setImageBlob] = useState(null);
@@ -139,30 +141,32 @@ function AstrologyChartGenerator() {
       return;
     }
 
-    let cancelled = false;
+    const controller = new AbortController();
     setIsCityLoading(true);
 
     const timer = setTimeout(async () => {
       try {
-        const results = await geocodeCity(query);
-        if (cancelled) return;
+        const results = await geocodeCity(query, controller.signal);
         setCityOptions(results);
         setShowCityDropdown(results.length > 0);
         setCityHighlightIndex(0);
+        setIsCityLoading(false);
       } catch (error) {
-        if (!cancelled) {
-          console.error("Error looking up city:", error);
-          setCityOptions([]);
-          setShowCityDropdown(false);
+        if (axios.isCancel(error) || error.code === "ERR_CANCELED") {
+          // A newer keystroke superseded this request; the effect cleanup
+          // already aborted it, nothing further to do here.
+          return;
         }
-      } finally {
-        if (!cancelled) setIsCityLoading(false);
+        console.error("Error looking up city:", error);
+        setCityOptions([]);
+        setShowCityDropdown(false);
+        setIsCityLoading(false);
       }
     }, GEOCODE_DEBOUNCE_MS);
 
     return () => {
-      cancelled = true;
       clearTimeout(timer);
+      controller.abort();
     };
   }, [cityInput]);
   
@@ -212,7 +216,8 @@ function AstrologyChartGenerator() {
       latitude: "",
       longitude: "",
       city: "",
-      country: ""
+      country: "",
+      timeFormat: "local"
     });
     setCityInput("");
   };
@@ -401,6 +406,7 @@ function AstrologyChartGenerator() {
         longitude: chartData.longitude,
         city: chartData.city || cityInput.split(',')[0].trim(), // Use the input city name if no selection was made
         country: chartData.country || (cityInput.includes(',') ? cityInput.split(',')[1].trim() : ""),
+        time_format: chartData.timeFormat,
         calculatePositions: true
       };
       
@@ -524,6 +530,32 @@ function AstrologyChartGenerator() {
               step="1" // Allow seconds input
               required
             />
+          </div>
+
+          <div>
+            <label style={{ display: "block", marginBottom: "4px" }}>Time is in:</label>
+            <div style={{ display: "flex", gap: "16px" }}>
+              <label style={{ fontWeight: "normal" }}>
+                <input
+                  type="radio"
+                  name="timeFormat"
+                  value="local"
+                  checked={chartData.timeFormat === "local"}
+                  onChange={handleInputChange}
+                />
+                {" "}Local time (based on location)
+              </label>
+              <label style={{ fontWeight: "normal" }}>
+                <input
+                  type="radio"
+                  name="timeFormat"
+                  value="utc"
+                  checked={chartData.timeFormat === "utc"}
+                  onChange={handleInputChange}
+                />
+                {" "}UTC
+              </label>
+            </div>
           </div>
 
           <div id="city-dropdown-container">
