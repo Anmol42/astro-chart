@@ -53,7 +53,8 @@ function AstrologyChartGenerator() {
     latitude: "",
     longitude: "",
     city: "",
-    country: ""
+    country: "",
+    timeFormat: "local" // "local" (relative to lat/lon) or "utc"
   });
   const [imageData, setImageData] = useState(null);
   const [imageBlob, setImageBlob] = useState(null);
@@ -215,7 +216,8 @@ function AstrologyChartGenerator() {
       latitude: "",
       longitude: "",
       city: "",
-      country: ""
+      country: "",
+      timeFormat: "local"
     });
     setCityInput("");
   };
@@ -404,6 +406,7 @@ function AstrologyChartGenerator() {
         longitude: chartData.longitude,
         city: chartData.city || cityInput.split(',')[0].trim(), // Use the input city name if no selection was made
         country: chartData.country || (cityInput.includes(',') ? cityInput.split(',')[1].trim() : ""),
+        time_format: chartData.timeFormat,
         calculatePositions: true
       };
       
@@ -527,6 +530,32 @@ function AstrologyChartGenerator() {
               step="1" // Allow seconds input
               required
             />
+          </div>
+
+          <div>
+            <label style={{ display: "block", marginBottom: "4px" }}>Time is in:</label>
+            <div style={{ display: "flex", gap: "16px" }}>
+              <label style={{ fontWeight: "normal" }}>
+                <input
+                  type="radio"
+                  name="timeFormat"
+                  value="local"
+                  checked={chartData.timeFormat === "local"}
+                  onChange={handleInputChange}
+                />
+                {" "}Local time (based on location)
+              </label>
+              <label style={{ fontWeight: "normal" }}>
+                <input
+                  type="radio"
+                  name="timeFormat"
+                  value="utc"
+                  checked={chartData.timeFormat === "utc"}
+                  onChange={handleInputChange}
+                />
+                {" "}UTC
+              </label>
+            </div>
           </div>
 
           <div id="city-dropdown-container">
