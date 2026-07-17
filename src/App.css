@@ -242,6 +242,25 @@ p { font-size: 20px; }
   background-color: #e6d6df41;
 }
 
+.chart-view-stack {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  min-height: 700px; /* matches #chart-viewer's own height so it can't get
+    squeezed by flexbox once sibling content (e.g. the planet-positions
+    grid) grows - absolutely positioned children don't establish their
+    own container's size, so this floor has to be explicit. */
+}
+
+.chart-view-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .chart-controls {
   display: flex;
   justify-content: center;
@@ -303,4 +322,183 @@ p { font-size: 20px; }
 .planet-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Beta SVG chart wheel (AstroWheel component) */
+.beta-toggle-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0.5rem;
+}
+
+.beta-toggle-row button {
+  background-color: #7a54a0ac;
+  border: 1px solid #090909;
+  color: #f4f4f4;
+  border-radius: 4px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.beta-toggle-row button:hover {
+  background-color: #8282bd;
+}
+
+.astro-wheel-container {
+  width: 100%;
+  max-width: 700px;
+  margin: 0 auto;
+  background-color: #e6d6df41;
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.astro-wheel {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Zoom/pan wrapper for the SVG wheel - mirrors the OpenSeadragon controls
+   on the classic chart (zoom in / out / reset + wheel-zoom + drag-pan). */
+.astro-wheel-zoom {
+  width: 100%;
+}
+
+.astro-wheel-viewport {
+  width: 100%;
+  overflow: hidden;          /* clip the wheel as it's zoomed/panned */
+  border-radius: 8px;
+  touch-action: none;        /* let pointer-drag pan instead of scrolling */
+}
+
+.astro-wheel-pan {
+  width: 100%;
+  will-change: transform;
+}
+
+.astro-wheel-controls {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.astro-wheel-controls button {
+  background-color: #7a54a0ac;
+  border: 1px solid #090909;
+  color: #f4f4f4;
+  border-radius: 4px;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.astro-wheel-controls button:hover {
+  background-color: #8282bd;
+}
+
+.wheel-background {
+  fill: #faf6ef;
+  stroke: none;
+}
+
+.wheel-ring-outer,
+.wheel-ring-mid,
+.wheel-ring-inner {
+  fill: none;
+  stroke: #090909;
+  stroke-width: 0.3;
+}
+
+.wheel-sign-tick {
+  stroke: #090909;
+  stroke-width: 0.4;
+}
+
+.wheel-sign-label {
+  font-size: 3.2px;
+  fill: #7a2e2e;
+  font-weight: bold;
+}
+
+.wheel-nakshatra-tick-major {
+  stroke: #5b3a7a;
+  stroke-width: 0.3;
+}
+
+.wheel-nakshatra-tick-minor {
+  stroke: #999;
+  stroke-width: 0.15;
+}
+
+.wheel-nakshatra-label {
+  font-size: 1.6px;
+  fill: #5b3a7a;
+  font-weight: 600;
+}
+
+.wheel-house-wedge-odd {
+  fill: #e4d9c4;
+  stroke: none;
+}
+
+.wheel-house-wedge-even {
+  fill: #cfe0d8;
+  stroke: none;
+}
+
+.wheel-house-line {
+  stroke: #888;
+  stroke-width: 0.25;
+}
+
+.wheel-house-madhya-line {
+  stroke: #444;
+  stroke-width: 0.2;
+  stroke-dasharray: 0.6, 0.6;
+  opacity: 0.6;
+}
+
+.wheel-house-number {
+  font-size: 2.6px;
+  fill: #1f3d7a;
+  font-weight: bold;
+}
+
+.wheel-angle-marker {
+  stroke: #1f3d7a;
+  stroke-width: 0.2;
+  opacity: 0.35;
+}
+
+.wheel-angle-label {
+  font-size: 1.8px;
+  fill: #1f3d7a;
+  font-weight: 600;
+  opacity: 0.55;
+}
+
+.wheel-planet-line {
+  stroke-width: 0.15;
+  opacity: 0.55;
+}
+
+.wheel-planet-glyph {
+  font-size: 4.5px;
+  font-weight: bold;
+}
+
+.wheel-planet-degree {
+  font-size: 1.7px;
+  font-weight: 600;
+}
+
+.wheel-retrograde {
+  font-size: 2.4px;
+  fill: #c0392b;
 }

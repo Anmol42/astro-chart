@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import OpenSeadragon from "openseadragon";
+import AstroWheel from "./AstroWheel";
 import "./App.css"
 
 const GEOCODE_ENDPOINT = "https://nominatim.openstreetmap.org/search";
 const GEOCODE_DEBOUNCE_MS = 350;
+const API_BASE = "https://fastapi-astro-chart.onrender.com";
 
 // In-memory cache shared across renders/instances so repeated searches
 // (e.g. re-typing the same city) don't re-hit the API.
@@ -58,6 +60,8 @@ function AstrologyChartGenerator() {
   });
   const [imageData, setImageData] = useState(null);
   const [imageBlob, setImageBlob] = useState(null);
+  const [chartResponse, setChartResponse] = useState(null); // /chart JSON, beta SVG wheel
+  const [showBetaChart, setShowBetaChart] = useState(false);
   const viewerRef = useRef(null);
   const osdViewer = useRef(null); // Track OpenSeadragon instance
   
@@ -380,6 +384,7 @@ function AstrologyChartGenerator() {
       setImageData(null);
     }
     setImageBlob(null);
+    setChartResponse(null);
 
     // Reset form fields
     resetForm();
@@ -410,7 +415,23 @@ function AstrologyChartGenerator() {
         calculatePositions: true
       };
       
-      const response = await axios.post("https://fastapi-astro-chart.onrender.com/generate_chart", payload, {
+      // Beta: fire the consolidated /chart request concurrently with the
+      // classic PNG/positions calls below, rather than after them - it's a
+      // single computation (vs. the classic flow's two separate ephemeris
+      // calculations plus a matplotlib render) so it should actually finish
+      // first once fully cut over. Deliberately isolated in its own
+      // try/catch - a failure here shouldn't break the existing, working
+      // classic flow.
+      axios.post(`${API_BASE}/chart`, payload, {
+        headers: { "Content-Type": "application/json" },
+      }).then((chartResp) => {
+        setChartResponse(chartResp.data);
+      }).catch((error) => {
+        console.error("Error fetching /chart (beta):", error);
+        setChartResponse(null);
+      });
+
+      const response = await axios.post(`${API_BASE}/generate_chart`, payload, {
         headers: { "Content-Type": "application/json" },
         responseType: "blob",
       });
@@ -419,13 +440,13 @@ function AstrologyChartGenerator() {
       const imageUrl = URL.createObjectURL(newImageBlob);
       setImageData(imageUrl);
       setImageBlob(newImageBlob);
-      
+
       // Request the calculated positions to display them
       try {
-        const positionsResponse = await axios.post("https://fastapi-astro-chart.onrender.com/get_positions", payload, {
+        const positionsResponse = await axios.post(`${API_BASE}/get_positions`, payload, {
           headers: { "Content-Type": "application/json" },
         });
-        
+
         // Assuming backend returns calculated positions for planets
         setEntries(positionsResponse.data);
       } catch (error) {
@@ -690,11 +711,42 @@ function AstrologyChartGenerator() {
         {/* Chart viewer container - 70% height */}
         <div className="chart-container">
           <h3>Chart for {getDisplayLocation()}, {formatDate(chartData.date)} at {chartData.time}</h3>
-          <div id="chart-viewer" ref={viewerRef}></div>
-          <div className="chart-controls">
-            <button id="zoom-in">Zoom In</button>
-            <button id="zoom-out">Zoom Out</button>
-            <button id="reset">Reset</button>
+
+          {chartResponse && (
+            <div className="beta-toggle-row">
+              <button onClick={() => setShowBetaChart((prev) => !prev)}>
+                {showBetaChart ? "Show classic chart" : "Show beta chart (SVG)"}
+              </button>
+            </div>
+          )}
+
+          {/* Both views stay mounted at all times and are toggled via
+              visibility (not display: none). OpenSeadragon manipulates the
+              #chart-viewer DOM node directly outside React's usual
+              lifecycle - display:none collapses it to zero size, and OSD
+              caches/queries that dimension internally, leaving it blank
+              even after being shown again. visibility:hidden keeps the
+              element's layout box intact, which OSD needs; both views are
+              absolutely positioned within a relative wrapper so the hidden
+              one doesn't still take up layout space. */}
+          <div className="chart-view-stack">
+            <div
+              className="astro-wheel-container chart-view-layer"
+              style={{ visibility: showBetaChart && chartResponse ? "visible" : "hidden" }}
+            >
+              <AstroWheel chart={chartResponse} />
+            </div>
+            <div
+              className="chart-view-layer"
+              style={{ visibility: showBetaChart && chartResponse ? "hidden" : "visible" }}
+            >
+              <div id="chart-viewer" ref={viewerRef}></div>
+              <div className="chart-controls">
+                <button id="zoom-in">Zoom In</button>
+                <button id="zoom-out">Zoom Out</button>
+                <button id="reset">Reset</button>
+              </div>
+            </div>
           </div>
         </div>
 
