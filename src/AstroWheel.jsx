@@ -1,19 +1,35 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useRef, useEffect } from "react";
+import OpenSeadragon from "openseadragon";
 
-const MIN_SCALE = 1;
-const MAX_SCALE = 8;
-const ZOOM_STEP = 1.25; // per button click
-const WHEEL_SENSITIVITY = 0.0015; // gentler, proportional to scroll amount
+const ZOOM_STEP = 1.25; // per button click, matches the classic viewer's step
 
-function clampScale(s) {
-  return Math.min(MAX_SCALE, Math.max(MIN_SCALE, s));
-}
+// 1x1 transparent PNG - OSD needs a real "image" tileSource to own the
+// viewport/zoom-pan physics, but the actual chart is the SVG overlay below,
+// not this pixel. Using OSD's own image viewer (rather than the hand-rolled
+// CSS transform + wheel-event zoom used before) is what gives the SVG wheel
+// the same spring-physics zoom/pan feel as the classic raster chart.
+// IMPORTANT: this must actually decode to a transparent pixel (RGBA with
+// alpha 0) - an earlier version of this constant was an opaque black pixel
+// (gray+alpha PNG, alpha=255), which OSD scaled up to fill the whole tile,
+// showing as a solid black square/ring around the wheel whenever pan/zoom
+// exposed the canvas beyond the SVG overlay.
+const BLANK_TILE_SOURCE = {
+  type: "image",
+  url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4//8/AwAI/AL+p5qgoAAAAABJRU5ErkJggg==",
+  buildPyramid: false,
+};
 
 // Moved client-side from the old backend matplotlib rendering - same glyphs/colors.
 const PLANET_SYMBOLS = {
   Sun: "☉", Moon: "☽", Mercury: "☿", Venus: "♀", Mars: "♂",
   Jupiter: "♃", Saturn: "♄", Rahu: "☊", Ketu: "☋",
   Uranus: "♅", Neptune: "♆", Pluto: "♇",
+};
+
+const PLANET_ABBR = {
+  Sun: "Sun", Moon: "Moo", Mercury: "Mer", Venus: "Ven", Mars: "Mar",
+  Jupiter: "Jup", Saturn: "Sat", Rahu: "Rah", Ketu: "Ket",
+  Uranus: "Ura", Neptune: "Nep", Pluto: "Plu",
 };
 
 const PLANET_COLORS = {
@@ -24,6 +40,13 @@ const PLANET_COLORS = {
 };
 
 const ZODIAC_GLYPHS = ["♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓"];
+const ZODIAC_NAMES = [
+  "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+  "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces",
+];
+// 2-letter codes for the Navamsha ring - full names/emoji there would be
+// unreadable at 108-slices-around-the-circle density.
+const ZODIAC_ABBR = ["Ar", "Ta", "Ge", "Cn", "Le", "Vi", "Li", "Sc", "Sg", "Cp", "Aq", "Pi"];
 
 const NAKSHATRA_COUNT = 27;
 const NAKSHATRA_SPAN = 360 / NAKSHATRA_COUNT; // 13deg20'
@@ -31,6 +54,14 @@ const PADA_SPAN = NAKSHATRA_SPAN / 4; // 3deg20'
 
 const CENTER = 50;
 const OUTER_R = 48;
+
+// Ring bands, outer to inner, as fractions of OUTER_R. Splitting the old
+// single 0.78-0.9 nakshatra band in two makes room for a dedicated Navamsha
+// ring alongside it - the house lines/wedges shrink to make space, moving
+// their outer edge from 0.78 to HOUSE_R.
+const SIGN_R = 0.9; // outer edge of the nakshatra/navamsha bands
+const NAV_R = 0.83; // boundary between nakshatra band (outer) and navamsha band (inner)
+const HOUSE_R = 0.74; // outer edge of the house-line/wedge band
 
 // Ascendant-relative polar placement: the Ascendant always lands at the
 // fixed left (9 o'clock) screen angle (180deg in this formula), and
@@ -49,6 +80,18 @@ function polarToXY(radius, longitude, ascendantLongitude) {
 
 function normalize360(deg) {
   return ((deg % 360) + 360) % 360;
+}
+
+// Navamsha (D9 varga) sign index for a given sidereal longitude. Navamsha
+// is not an independent chart - it's each 30deg sign cut into 9 equal
+// 3deg20' parts (the same span as a nakshatra pada), each part mapped to a
+// zodiac sign. The classical rule (start sign varies by movable/fixed/dual)
+// collapses to this single continuous formula: signs simply keep counting
+// onward every 9th-of-a-sign around the full zodiac, wrapping mod 12.
+function navamshaSignIndex(longitude) {
+  const signIndex = Math.floor(longitude / 30);
+  const part = Math.floor((longitude % 30) / PADA_SPAN); // 0-8 within the sign
+  return (signIndex * 9 + part) % 12;
 }
 
 // Builds an SVG path for the annular wedge of one house, spanning from
@@ -110,116 +153,76 @@ function stackPlanets(planets, thresholdDeg = 5) {
 }
 
 function AstroWheel({ chart, size = 640 }) {
-  const viewportRef = useRef(null);
-  const [scale, setScale] = useState(1);
-  const [translate, setTranslate] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragState = useRef(null);
+  const osdContainerRef = useRef(null);
+  const overlayRef = useRef(null);
+  const viewerRef = useRef(null);
 
-  // Zoom keeping the given viewport-local point (px) anchored in place, so
-  // wheel-zoom homes in on the cursor and button-zoom on the viewport centre
-  // - the same behaviour OpenSeadragon gives the raster chart.
-  const zoomAround = useCallback((factor, anchorX, anchorY) => {
-    setScale((prevScale) => {
-      const nextScale = clampScale(prevScale * factor);
-      const ratio = nextScale / prevScale;
-      if (ratio !== 1) {
-        setTranslate((prev) => ({
-          x: anchorX - (anchorX - prev.x) * ratio,
-          y: anchorY - (anchorY - prev.y) * ratio,
-        }));
-      }
-      return nextScale;
-    });
-  }, []);
-
-  const zoomByButton = useCallback((factor) => {
-    const rect = viewportRef.current?.getBoundingClientRect();
-    zoomAround(factor, rect ? rect.width / 2 : 0, rect ? rect.height / 2 : 0);
-  }, [zoomAround]);
-
-  const reset = useCallback(() => {
-    setScale(1);
-    setTranslate({ x: 0, y: 0 });
-  }, []);
-
-  const handleWheel = useCallback((e) => {
-    e.preventDefault();
-    const rect = viewportRef.current.getBoundingClientRect();
-    // Exponential factor scaled by the actual scroll delta, so a small
-    // trackpad nudge zooms a little and a big wheel spin zooms more -
-    // instead of every notch jumping by a fixed multiplier.
-    const factor = Math.exp(-e.deltaY * WHEEL_SENSITIVITY);
-    zoomAround(factor, e.clientX - rect.left, e.clientY - rect.top);
-  }, [zoomAround]);
-
-  const handlePointerDown = useCallback((e) => {
-    // Only pan when zoomed in (matches OSD - no drag at home view).
-    dragState.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      originX: translate.x,
-      originY: translate.y,
-    };
-    setIsDragging(true);
-    e.currentTarget.setPointerCapture?.(e.pointerId);
-  }, [translate]);
-
-  const handlePointerMove = useCallback((e) => {
-    if (!dragState.current) return;
-    const { startX, startY, originX, originY } = dragState.current;
-    setTranslate({
-      x: originX + (e.clientX - startX),
-      y: originY + (e.clientY - startY),
-    });
-  }, []);
-
-  const endDrag = useCallback((e) => {
-    dragState.current = null;
-    setIsDragging(false);
-    e.currentTarget?.releasePointerCapture?.(e.pointerId);
-  }, []);
-
-  // Native wheel listeners are passive by default, so preventDefault() from a
-  // React onWheel is ignored and the page scrolls instead of zooming. Attach
-  // non-passive so wheel-zoom actually captures the gesture.
+  // Own the viewport/zoom-pan physics with a real OpenSeadragon instance -
+  // same spring easing/momentum as the classic raster chart - and place the
+  // live SVG as an HTML overlay tracking a 1x1 blank placeholder image, so
+  // the chart itself stays a real, crisp DOM node rather than a rasterized
+  // tile. Mirrors how the classic viewer is set up in App.js.
   useEffect(() => {
-    const node = viewportRef.current;
-    if (!node) return undefined;
-    node.addEventListener("wheel", handleWheel, { passive: false });
-    return () => node.removeEventListener("wheel", handleWheel);
-  }, [handleWheel]);
+    if (!osdContainerRef.current || viewerRef.current) return undefined;
 
-  if (!chart) return null;
+    const viewer = OpenSeadragon({
+      element: osdContainerRef.current,
+      tileSources: BLANK_TILE_SOURCE,
+      showNavigationControl: false,
+      showZoomControl: false,
+      showHomeControl: false,
+      showFullPageControl: false,
+      showNavigator: false,
+      gestureSettingsMouse: { clickToZoom: false },
+      gestureSettingsTouch: { clickToZoom: false },
+      visibilityRatio: 1,
+      constrainDuringPan: true,
+      // maxZoomPixelRatio caps zoom by screen-pixels-per-source-pixel, which
+      // makes sense for a real photo but not our 1x1 placeholder - at home
+      // zoom we're already showing ~600 screen px for that single source
+      // pixel, so a small cap like 8 would clamp zoom-in almost immediately.
+      // Bound zoom in viewport-level terms instead (1x = home, 8x = same
+      // ceiling the old hand-rolled MAX_SCALE used).
+      minZoomLevel: 1,
+      maxZoomLevel: 8,
+      maxZoomPixelRatio: Infinity,
+    });
 
-  const ascendantLongitude = chart.houses.ascendant.longitude;
-  const cusps = chart.houses.cusps; // house middles (Bhava Madhya)
-  const boundaries = chart.houses.boundaries || cusps; // house edges (Bhava Sandhi)
-  const stackedPlanets = stackPlanets(chart.planets);
+    viewer.addHandler("open", () => {
+      if (overlayRef.current) {
+        viewer.addOverlay({
+          element: overlayRef.current,
+          location: new OpenSeadragon.Rect(0, 0, 1, 1),
+        });
+      }
+    });
+
+    viewerRef.current = viewer;
+    return () => {
+      viewer.destroy();
+      viewerRef.current = null;
+    };
+  }, []);
+
+  // The container/overlay shell must always mount (even before `chart`
+  // arrives) so the OSD-init effect above - which only runs once, on mount -
+  // sees a real DOM node. Bailing out with an early `return null` here would
+  // leave osdContainerRef permanently null on the first render (chart starts
+  // null while the /chart request is in flight), and since that effect's
+  // deps are `[]` it would never get a second chance to initialize once the
+  // chart data actually arrives.
+  const ascendantLongitude = chart?.houses?.ascendant?.longitude ?? 0;
+  const cusps = chart?.houses?.cusps ?? []; // house middles (Bhava Madhya)
+  const boundaries = chart?.houses?.boundaries ?? cusps; // house edges (Bhava Sandhi)
+  const stackedPlanets = chart ? stackPlanets(chart.planets) : [];
 
   const point = (radius, longitude) => polarToXY(radius, longitude, ascendantLongitude);
 
   return (
     <div className="astro-wheel-zoom">
-      <div
-        ref={viewportRef}
-        className="astro-wheel-viewport"
-        style={{ cursor: scale > 1 ? "grab" : "default" }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-      >
-        <div
-          className="astro-wheel-pan"
-          style={{
-            transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
-            transformOrigin: "0 0",
-            // Smooth easing for button/wheel zoom, but none while dragging so
-            // the pan tracks the pointer 1:1 without lag.
-            transition: isDragging ? "none" : "transform 0.12s ease-out",
-          }}
-        >
+      <div ref={osdContainerRef} className="astro-wheel-osd-viewport" style={{ width: size, height: size }} />
+      <div ref={overlayRef} className="astro-wheel-overlay">
+      {chart && (
     <svg
       viewBox="0 0 100 100"
       width={size}
@@ -237,7 +240,7 @@ function AstroWheel({ chart, size = 640 }) {
       {boundaries.map((boundary, i) => {
         const nextLon = boundaries[(i + 1) % boundaries.length].longitude;
         const span = normalize360(nextLon - boundary.longitude) || 360;
-        const path = houseWedgePath(point, boundary.longitude, span, OUTER_R * 0.15, OUTER_R * 0.78);
+        const path = houseWedgePath(point, boundary.longitude, span, OUTER_R * 0.15, OUTER_R * HOUSE_R);
         return (
           <path
             key={`house-wedge-${boundary.house}`}
@@ -249,20 +252,35 @@ function AstroWheel({ chart, size = 640 }) {
 
       {/* Outer boundary rings */}
       <circle cx={CENTER} cy={CENTER} r={OUTER_R} className="wheel-ring-outer" />
-      <circle cx={CENTER} cy={CENTER} r={OUTER_R * 0.9} className="wheel-ring-mid" />
-      <circle cx={CENTER} cy={CENTER} r={OUTER_R * 0.78} className="wheel-ring-mid" />
+      <circle cx={CENTER} cy={CENTER} r={OUTER_R * SIGN_R} className="wheel-ring-mid" />
+      <circle cx={CENTER} cy={CENTER} r={OUTER_R * NAV_R} className="wheel-ring-mid" />
+      <circle cx={CENTER} cy={CENTER} r={OUTER_R * HOUSE_R} className="wheel-ring-mid" />
       <circle cx={CENTER} cy={CENTER} r={OUTER_R * 0.15} className="wheel-ring-inner" />
 
-      {/* Zodiac sign boundaries + glyphs (outer band, 12 x 30deg) */}
+      {/* Zodiac sign boundaries + glyph+name labels (outer band, 12 x 30deg).
+          Oriented tangentially (same technique as the nakshatra ring) since
+          "♈ Aries" is too wide to sit horizontally near the top/bottom of
+          the circle without overlapping its neighbors. */}
       {Array.from({ length: 12 }, (_, i) => i * 30).map((signStart) => {
         const outer = point(OUTER_R, signStart);
-        const inner = point(OUTER_R * 0.9, signStart);
-        const labelPos = point(OUTER_R * 0.95, signStart + 15);
+        const inner = point(OUTER_R * SIGN_R, signStart);
+        const centerLon = signStart + 15;
+        const labelPos = point(OUTER_R * 0.95, centerLon);
+        const angleDeg = 180 - (centerLon - ascendantLongitude);
+        let svgRotate = -angleDeg + 90;
+        const normalized = normalize360(svgRotate);
+        if (normalized > 90 && normalized < 270) svgRotate += 180;
         return (
           <React.Fragment key={`sign-${signStart}`}>
             <line x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y} className="wheel-sign-tick" />
-            <text x={labelPos.x} y={labelPos.y} className="wheel-sign-label" textAnchor="middle" dominantBaseline="middle">
-              {ZODIAC_GLYPHS[signStart / 30]}
+            <text
+              x={labelPos.x} y={labelPos.y}
+              className="wheel-sign-label"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              transform={`rotate(${svgRotate}, ${labelPos.x}, ${labelPos.y})`}
+            >
+              {ZODIAC_GLYPHS[signStart / 30]} {ZODIAC_NAMES[signStart / 30]}
             </text>
           </React.Fragment>
         );
@@ -271,8 +289,8 @@ function AstroWheel({ chart, size = 640 }) {
       {/* Nakshatra + pada ticks (108 x 3deg20', major every 4th) */}
       {Array.from({ length: 108 }, (_, i) => i * PADA_SPAN).map((tickLon, i) => {
         const isNakshatraBoundary = i % 4 === 0;
-        const outer = point(OUTER_R * 0.9, tickLon);
-        const inner = point(OUTER_R * (isNakshatraBoundary ? 0.78 : 0.84), tickLon);
+        const outer = point(OUTER_R * SIGN_R, tickLon);
+        const inner = point(OUTER_R * (isNakshatraBoundary ? NAV_R : 0.865), tickLon);
         return (
           <line
             key={`pada-${i}`}
@@ -282,19 +300,23 @@ function AstroWheel({ chart, size = 640 }) {
         );
       })}
 
-      {/* Nakshatra name labels, oriented radially (reading outward along the
-          spoke, like the old matplotlib chart) rather than tangentially -
-          radial text only needs vertical clearance between neighbors, not
-          full label-width clearance, which is what actually fits 27 names
-          around the circle without overlapping. */}
+      {/* Nakshatra name labels, oriented tangentially (running along the
+          circumference, like the ring of a real chart wheel) rather than
+          radially - the old radial orientation made full names ("Pu.
+          Bhadrapada") stick out past the band into the neighboring rings.
+          Tangential text only needs the band's own width for its
+          font-size, and short-form abbreviations (the standard 3-4 letter
+          codes) keep every label comfortably within its 13.33deg slice;
+          the full name is still available on hover via <title>. */}
       {Array.from({ length: NAKSHATRA_COUNT }, (_, i) => i).map((nakIndex) => {
         const centerLon = nakIndex * NAKSHATRA_SPAN + NAKSHATRA_SPAN / 2;
-        const pos = point(OUTER_R * 0.84, centerLon);
+        const pos = point(OUTER_R * ((SIGN_R + NAV_R) / 2), centerLon);
         const angleDeg = 180 - (centerLon - ascendantLongitude);
         // Convert from our math-angle convention (CCW-positive) to SVG's
-        // rotate() convention (CW-positive), then flip 180deg where needed
-        // so the text never renders upside-down.
-        let svgRotate = -angleDeg;
+        // rotate() convention (CW-positive); tangential text reads along
+        // the circle so it needs a +90deg offset from the radial angle,
+        // plus the same upside-down flip check as before.
+        let svgRotate = -angleDeg + 90;
         const normalized = normalize360(svgRotate);
         if (normalized > 90 && normalized < 270) svgRotate += 180;
         return (
@@ -306,7 +328,42 @@ function AstroWheel({ chart, size = 640 }) {
             dominantBaseline="middle"
             transform={`rotate(${svgRotate}, ${pos.x}, ${pos.y})`}
           >
-            {NAKSHATRA_NAMES[nakIndex]}
+            <title>{NAKSHATRA_NAMES[nakIndex]}</title>
+            {NAKSHATRA_ABBR[nakIndex]}
+          </text>
+        );
+      })}
+
+      {/* Navamsha (D9) ring - each 3deg20' pada-width slice labeled with the
+          2-letter code of the sign that slice falls into under the D9
+          subdivision. Same tick positions as the nakshatra ring above (the
+          spans coincide exactly), just one band further in. Plain 2-letter
+          text rather than the zodiac emoji glyphs - at 108-around-the-circle
+          density the glyphs read as visual noise/too similar to each other. */}
+      {Array.from({ length: 108 }, (_, i) => i * PADA_SPAN).map((tickLon, i) => {
+        const isNakshatraBoundary = i % 4 === 0;
+        const outer = point(OUTER_R * NAV_R, tickLon);
+        const inner = point(OUTER_R * (isNakshatraBoundary ? HOUSE_R : 0.775), tickLon);
+        return (
+          <line
+            key={`navamsha-tick-${i}`}
+            x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y}
+            className={isNakshatraBoundary ? "wheel-navamsha-tick-major" : "wheel-navamsha-tick-minor"}
+          />
+        );
+      })}
+      {Array.from({ length: 108 }, (_, i) => i).map((i) => {
+        const centerLon = i * PADA_SPAN + PADA_SPAN / 2;
+        const pos = point(OUTER_R * ((NAV_R + HOUSE_R) / 2), centerLon);
+        return (
+          <text
+            key={`navamsha-label-${i}`}
+            x={pos.x} y={pos.y}
+            className="wheel-navamsha-label"
+            textAnchor="middle"
+            dominantBaseline="middle"
+          >
+            {ZODIAC_ABBR[navamshaSignIndex(centerLon)]}
           </text>
         );
       })}
@@ -321,7 +378,7 @@ function AstroWheel({ chart, size = 640 }) {
           below for the real angular points. House numbers sit at the house
           MIDDLE (Bhava Madhya), which for house 1 is the Ascendant itself. */}
       {boundaries.map((boundary) => {
-        const outer = point(OUTER_R * 0.78, boundary.longitude);
+        const outer = point(OUTER_R * HOUSE_R, boundary.longitude);
         const inner = point(OUTER_R * 0.15, boundary.longitude);
         return (
           <line
@@ -345,7 +402,7 @@ function AstroWheel({ chart, size = 640 }) {
           by the dashed stroke so the solid boundary vs dotted middle read
           as two different kinds of line at a glance. */}
       {cusps.map((cusp) => {
-        const outer = point(OUTER_R * 0.78, cusp.longitude);
+        const outer = point(OUTER_R * HOUSE_R, cusp.longitude);
         const inner = point(OUTER_R * 0.15, cusp.longitude);
         return (
           <line
@@ -368,7 +425,7 @@ function AstroWheel({ chart, size = 640 }) {
         { label: "MC", longitude: chart.houses.midheaven.longitude },
         { label: "IC", longitude: normalize360(chart.houses.midheaven.longitude + 180) },
       ].map((angle) => {
-        const outer = point(OUTER_R * 0.78, angle.longitude);
+        const outer = point(OUTER_R * HOUSE_R, angle.longitude);
         const inner = point(OUTER_R * 0.15, angle.longitude);
         const labelPos = point(OUTER_R * 0.11, angle.longitude);
         return (
@@ -388,10 +445,19 @@ function AstroWheel({ chart, size = 640 }) {
           different radii to avoid overlapping - still show their exact
           angular position at a glance. */}
       {stackedPlanets.map((planet) => {
-        const radius = OUTER_R * (0.68 - planet.stackIndex * 0.11);
+        const radius = OUTER_R * (0.68 - planet.stackIndex * 0.14);
         const pos = point(radius, planet.longitude);
         const color = PLANET_COLORS[planet.name] || "#333";
-        const degreeLabelPos = point(radius - 3.2, planet.longitude);
+        const nameLabelPos = point(radius - 2.4, planet.longitude);
+        const degreeLabelPos = point(radius - 4.6, planet.longitude);
+        // Tangential orientation (running along the circumference) for the
+        // name, same technique as the sign/nakshatra rings, rather than
+        // stacked radially under the glyph - reads more like a wheel-chart
+        // label and needs less vertical room per stacked planet.
+        const nameAngleDeg = 180 - (planet.longitude - ascendantLongitude);
+        let nameSvgRotate = -nameAngleDeg + 90;
+        const nameNormalized = normalize360(nameSvgRotate);
+        if (nameNormalized > 90 && nameNormalized < 270) nameSvgRotate += 180;
         return (
           <g key={planet.name}>
             <line
@@ -410,6 +476,16 @@ function AstroWheel({ chart, size = 640 }) {
               {planet.retrograde && <tspan className="wheel-retrograde" dy="-2">℞</tspan>}
             </text>
             <text
+              x={nameLabelPos.x} y={nameLabelPos.y}
+              fill={color}
+              className="wheel-planet-name"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              transform={`rotate(${nameSvgRotate}, ${nameLabelPos.x}, ${nameLabelPos.y})`}
+            >
+              {PLANET_ABBR[planet.name] || planet.name.slice(0, 3)}
+            </text>
+            <text
               x={degreeLabelPos.x} y={degreeLabelPos.y}
               fill={color}
               className="wheel-planet-degree"
@@ -422,12 +498,12 @@ function AstroWheel({ chart, size = 640 }) {
         );
       })}
     </svg>
-        </div>
+      )}
       </div>
       <div className="astro-wheel-controls">
-        <button type="button" onClick={() => zoomByButton(ZOOM_STEP)}>Zoom In</button>
-        <button type="button" onClick={() => zoomByButton(1 / ZOOM_STEP)}>Zoom Out</button>
-        <button type="button" onClick={reset}>Reset</button>
+        <button type="button" onClick={() => viewerRef.current?.viewport.zoomBy(ZOOM_STEP).applyConstraints()}>Zoom In</button>
+        <button type="button" onClick={() => viewerRef.current?.viewport.zoomBy(1 / ZOOM_STEP).applyConstraints()}>Zoom Out</button>
+        <button type="button" onClick={() => viewerRef.current?.viewport.goHome()}>Reset</button>
       </div>
     </div>
   );
@@ -443,6 +519,20 @@ const NAKSHATRA_NAMES = [
   "Mula", "Pu. Ashadha", "U. Ashadha",
   "Shravana", "Dhanishta", "Shatabhisha",
   "Pu. Bhadrapada", "U. Bhadrapada", "Revati",
+];
+
+// Standard short-form codes, used on the wheel itself since the full names
+// don't fit in the ring's tangential slice at a legible font size.
+const NAKSHATRA_ABBR = [
+  "Ash", "Bha", "Kri",
+  "Roh", "Mrg", "Ard",
+  "Pun", "Pus", "Asl",
+  "Mag", "PPh", "UPh",
+  "Has", "Chi", "Swa",
+  "Vis", "Anu", "Jye",
+  "Mul", "PAs", "UAs",
+  "Shr", "Dha", "Sha",
+  "PBh", "UBh", "Rev",
 ];
 
 export default AstroWheel;

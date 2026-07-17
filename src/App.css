@@ -352,33 +352,50 @@ p { font-size: 20px; }
   width: 100%;
   max-width: 700px;
   margin: 0 auto;
-  background-color: #e6d6df41;
+  background-color: #ffffff;
   border-radius: 10px;
   padding: 1rem;
 }
 
 .astro-wheel {
   width: 100%;
-  height: auto;
+  height: 100%;
   display: block;
 }
 
-/* Zoom/pan wrapper for the SVG wheel - mirrors the OpenSeadragon controls
-   on the classic chart (zoom in / out / reset + wheel-zoom + drag-pan). */
+/* Zoom/pan wrapper for the SVG wheel - an OpenSeadragon instance owns a
+   blank 1x1 placeholder "image" purely for its zoom/pan physics, while the
+   live SVG sits as an HTML overlay OSD repositions/resizes to track that
+   placeholder - same spring-easing zoom feel as the classic raster chart,
+   but the chart itself stays a real, crisp DOM node. */
 .astro-wheel-zoom {
   width: 100%;
+  position: relative;
 }
 
-.astro-wheel-viewport {
-  width: 100%;
-  overflow: hidden;          /* clip the wheel as it's zoomed/panned */
+.astro-wheel-osd-viewport {
+  max-width: 100%;
   border-radius: 8px;
-  touch-action: none;        /* let pointer-drag pan instead of scrolling */
+  background: #ffffff;
+  margin: 0 auto;
 }
 
-.astro-wheel-pan {
+/* OSD's own canvas/container default to an opaque black backdrop (meant to
+   letterbox photos) - that reads as a jarring black square around the
+   wheel whenever pan/zoom exposes the edges. Since our "image" is just a
+   blank 1x1 placeholder, there's nothing worth letterboxing - force it
+   white to match the wheel's own background instead. */
+.astro-wheel-osd-viewport .openseadragon-container,
+.astro-wheel-osd-viewport .openseadragon-canvas,
+.astro-wheel-osd-viewport canvas {
+  background: #ffffff !important;
+}
+
+/* OSD absolutely positions/sizes this element to track the placeholder
+   image's viewport rect - width/height here are just a pre-mount fallback. */
+.astro-wheel-overlay {
   width: 100%;
-  will-change: transform;
+  height: 100%;
 }
 
 .astro-wheel-controls {
@@ -403,7 +420,7 @@ p { font-size: 20px; }
 }
 
 .wheel-background {
-  fill: #faf6ef;
+  fill: #ffffff;
   stroke: none;
 }
 
@@ -421,7 +438,7 @@ p { font-size: 20px; }
 }
 
 .wheel-sign-label {
-  font-size: 3.2px;
+  font-size: 2.4px;
   fill: #7a2e2e;
   font-weight: bold;
 }
@@ -437,8 +454,24 @@ p { font-size: 20px; }
 }
 
 .wheel-nakshatra-label {
-  font-size: 1.6px;
+  font-size: 2px;
   fill: #5b3a7a;
+  font-weight: 600;
+}
+
+.wheel-navamsha-tick-major {
+  stroke: #7a5c1e;
+  stroke-width: 0.25;
+}
+
+.wheel-navamsha-tick-minor {
+  stroke: #b39a5f;
+  stroke-width: 0.12;
+}
+
+.wheel-navamsha-label {
+  font-size: 1.5px;
+  fill: #7a5c1e;
   font-weight: 600;
 }
 
@@ -493,8 +526,13 @@ p { font-size: 20px; }
   font-weight: bold;
 }
 
+.wheel-planet-name {
+  font-size: 1.6px;
+  font-weight: 600;
+}
+
 .wheel-planet-degree {
-  font-size: 1.7px;
+  font-size: 1.3px;
   font-weight: 600;
 }
 
